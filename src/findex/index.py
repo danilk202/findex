@@ -8,6 +8,7 @@ from pathlib import Path
 from findex.corpus import Document, iter_documents
 from findex.models import DocMeta, Posting
 from findex.tokenize import tokenize
+from findex.storage import save 
 
 Postings = dict[str, list[Posting]]
 
@@ -43,6 +44,7 @@ def main() -> None:
     ap.add_argument("root", type=Path)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--positions", action="store_true")
+    ap.add_argument("--format", choices=["pickle", "json"], default="pickle")
     args = ap.parse_args()
 
     tracemalloc.start()
@@ -57,7 +59,12 @@ def main() -> None:
     print(f"terms:     {len(postings)}")
     print(f"build:     {elapsed:.2f}s")
     print(f"peak mem:  {peak / 2**20:.1f} MiB")
-    # TODO: save(postings, metas, args.out) після storage.py
+   
+    t1 = time.perf_counter()
+    save(postings, metas, args.out, args.format)
+    save_time = time.perf_counter() - t1
+    size = args.out.stat().st_size / 2**20
+    print(f"saved:     {args.out} ({size:.1f} MiB, {save_time:.2f}s)")
 
 
 if __name__ == "__main__":
