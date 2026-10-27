@@ -4,7 +4,7 @@ import tracemalloc
 from pathlib import Path
 
 from findex.boolean import evaluate
-from findex.storage import load
+from findex.index import open_index
 
 
 def main() -> None:
@@ -17,18 +17,19 @@ def main() -> None:
 
     tracemalloc.start()
     t0 = time.perf_counter()
-    postings, metas = load(args.index)
-    load_time = time.perf_counter() - t0
+    with open_index(args.index) as index:
+        load_time = time.perf_counter() - t0
 
-    t1 = time.perf_counter()
-    ids = evaluate(args.query, postings, len(metas), args.engine)
-    search_time = time.perf_counter() - t1
-    _, peak = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
+        t1 = time.perf_counter()
+        # evaluate чекає dict, але йому досить .get() — Index теж підходить
+        ids = evaluate(args.query, index, index.num_docs, args.engine)
+        search_time = time.perf_counter() - t1
+        _, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
 
-    for doc_id in ids[: args.limit]:
-        m = metas[doc_id]
-        print(f"{m.doc_id:>3}  {m.title}  ({m.length} tokens)")
+        for doc_id in ids[: args.limit]:
+            m = index.metas[doc_id]
+            print(f"{m.doc_id:>3}  {m.title}  ({m.length} tokens)")
     print(f"found:     {len(ids)} documents (showing {min(len(ids), args.limit)})")
     print(f"load:      {load_time:.2f}s")
     print(f"search:    {search_time * 1000:.2f}ms ({args.engine})")
