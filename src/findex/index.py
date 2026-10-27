@@ -62,11 +62,11 @@ class Index(Mapping[str, list[Posting]]):
         return cls(*build_index(docs, with_positions=with_positions))
 
     @classmethod
-    def load(cls, path: Path) -> "Index":
-        return cls(*load(path))
+    def load(cls, path: str | Path) -> "Index":
+        return cls(*load(Path(path)))
 
-    def save(self, path: Path, fmt: str = "pickle") -> None:
-        save(self._postings, self._metas, path, fmt)
+    def save(self, path: str | Path, fmt: str = "pickle") -> None:
+        save(self._postings, self._metas, Path(path), fmt)
 
     # --- протокол Mapping ----------------------------------------------
     def __getitem__(self, term: str) -> list[Posting]:
