@@ -1,5 +1,3 @@
-
-
 import argparse
 import json
 from collections.abc import Sequence
@@ -14,7 +12,7 @@ SCORERS: dict[str, Scorer] = {"TF-IDF": TfIdf(), "BM25": BM25()}
 
 
 def precision_at_k(ranked: Sequence[str], relevant: set[str], k: int = 5) -> float:
-    
+
     return sum(1 for title in ranked[:k] if title in relevant) / k
 
 

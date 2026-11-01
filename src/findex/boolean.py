@@ -1,4 +1,4 @@
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Literal
 
 from findex.models import Posting
@@ -70,7 +70,9 @@ def andnot_set(a: IdList, b: IdList) -> IdList:
     return sorted(set(a) - set(b))
 
 
-_OPS: dict[str, tuple[Callable[..., IdList], ...]] = {
+type BinOp = Callable[[IdList, IdList], IdList]
+
+_OPS: dict[Engine, tuple[BinOp, BinOp, BinOp]] = {
     "merge": (and_merge, or_merge, andnot_merge),
     "set": (and_set, or_set, andnot_set),
 }
@@ -96,13 +98,13 @@ def parse(query: str) -> list[tuple[list[str], list[str]]]:
     return [g for g in groups if g[0] or g[1]]
 
 
-def _ids(postings: dict[str, list[Posting]], term: str) -> IdList:
+def _ids(postings: Mapping[str, list[Posting]], term: str) -> IdList:
     return [p.doc_id for p in postings.get(term, ())]
 
 
 def evaluate(
     query: str,
-    postings: dict[str, list[Posting]],
+    postings: Mapping[str, list[Posting]],
     n_docs: int,
     engine: Engine = "merge",
 ) -> IdList:

@@ -19,7 +19,11 @@ from findex.tokenize import tokenize
 
 
 class QuerySyntaxError(ValueError):
-    pass
+    """Запит не відповідає граматиці."""
+
+
+class NeedsPositionsError(ValueError):
+    """Фразовий запит до індексу, зібраного без позицій."""
 
 
 # ---------------------------------------------------------------- вузли дерева
@@ -70,12 +74,12 @@ class Phrase(Node):
 
     def evaluate(self, index: Index) -> set[int]:
         if not index.has_positions:
-            raise ValueError("phrase search needs an index built with --positions")
-        lists = [index.get(w) for w in self.words]
+            raise NeedsPositionsError("phrase search needs an index built with positions")
+        lists = [index.get(w, []) for w in self.words]
         if not all(lists):
             return set()
         # позиції кожного слова в кожному документі: [{doc_id: {pos, ...}}, ...]
-        pos = [{p.doc_id: set(p.positions) for p in plist} for plist in lists]
+        pos = [{p.doc_id: set(p.positions or ()) for p in plist} for plist in lists]
         candidates = set(pos[0]).intersection(*pos[1:])
         return {
             doc
@@ -148,6 +152,7 @@ def lex(query: str) -> list[str]:
         m = _TOKEN.match(query, pos)
         if not m:
             raise QuerySyntaxError(f"unclosed quote at position {pos}")
+        assert m.lastgroup is not None  # регулярка завжди збігається з однією з трьох груп
         tokens.append(m.group(m.lastgroup))
         pos = m.end()
     return tokens
@@ -205,12 +210,11 @@ class Parser:
             return node
         if tok in KEYWORDS or tok == ")":
             raise QuerySyntaxError(f"unexpected {tok!r}")
-        words = tuple(tokenize(tok.strip('"')))
+        words = list(tokenize(tok.strip('"')))
         if not words:
             raise QuerySyntaxError(f"empty term {tok!r}")
-        if tok.startswith('"') or len(words) > 1:
-            return Phrase(words) if len(words) > 1 else Term(words[0])
-        return Term(words[0])
+        # «don't» — один токен, а "event-loop!" чи "event loop" — кілька: тоді це фраза
+        return Phrase(tuple(words)) if len(words) > 1 else Term(words[0])
 
 
 def parse(query: str) -> Node:

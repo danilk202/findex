@@ -45,7 +45,6 @@ def search(
 
     pool = scores if candidates is None else candidates
     results = (
-        SearchResult(scores.get(doc_id, 0.0), doc_id, index.metas[doc_id].title)
-        for doc_id in pool
+        SearchResult(scores.get(doc_id, 0.0), doc_id, index.metas[doc_id].title) for doc_id in pool
     )
     return heapq.nlargest(k, results)

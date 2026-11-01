@@ -12,9 +12,15 @@ class Document(NamedTuple):
     text: str
 
 
-def iter_documents(root: Path) -> Iterator[Document]:
+def corpus_files(root: Path) -> list[Path]:
+    """Усі .txt у корпусі у стабільному порядку — порядок визначає doc_id."""
+    return sorted(root.rglob("*.txt"))
 
-    for doc_id, path in enumerate(sorted(root.rglob("*.txt"))):
+
+def iter_documents(root: Path) -> Iterator[Document]:
+    """Ліниво читає документи по одному."""
+    for doc_id, path in enumerate(corpus_files(root)):
+        log.debug("reading %s", path)
         try:
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:

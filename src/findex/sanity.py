@@ -1,4 +1,3 @@
-
 import argparse
 import math
 from pathlib import Path
@@ -52,7 +51,7 @@ def check_length(index: Index) -> None:
     bm25, tfidf = BM25(), TfIdf()
     short = min(index.metas, key=lambda m: m.length)
     long = max(index.metas, key=lambda m: m.length)
-    candidates = []
+    candidates: list[tuple[int, str]] = []
     for term, postings in index.items():
         tfs = {p.doc_id: p.tf for p in postings}
         if tfs.get(short.doc_id) == 1 and tfs.get(long.doc_id) == 1:

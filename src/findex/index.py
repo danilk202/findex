@@ -1,22 +1,18 @@
-import argparse
+import heapq
 import logging
-import time
-import tracemalloc
 from collections import Counter, defaultdict
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Generator, Iterable, Iterator, Mapping
 from contextlib import contextmanager
 from functools import cached_property
 from pathlib import Path
 
-from findex.corpus import Document, iter_documents
+from findex.corpus import Document
 from findex.models import DocMeta, Posting
-from findex.storage import load, save
+from findex.storage import Format, Postings, load, save
 from findex.timing import timed
 from findex.tokenize import tokenize
 
 log = logging.getLogger(__name__)
-
-Postings = dict[str, list[Posting]]
 
 
 def build_index(
@@ -52,7 +48,7 @@ class Index(Mapping[str, list[Posting]]):
     keys/items/values/get/__contains__/__eq__ abc.Mapping дає сам.
     """
 
-    def __init__(self, postings: dict[str, list[Posting]], metas: list[DocMeta]):
+    def __init__(self, postings: Postings, metas: list[DocMeta]) -> None:
         self._postings = postings
         self._metas = metas
         self.closed = False
@@ -68,7 +64,7 @@ class Index(Mapping[str, list[Posting]]):
     def load(cls, path: str | Path) -> "Index":
         return cls(*load(Path(path)))
 
-    def save(self, path: str | Path, fmt: str = "pickle") -> None:
+    def save(self, path: str | Path, fmt: Format = "pickle") -> None:
         save(self._postings, self._metas, Path(path), fmt)
 
     # --- протокол Mapping ----------------------------------------------
@@ -106,8 +102,15 @@ class Index(Mapping[str, list[Posting]]):
     def num_docs(self) -> int:
         return len(self._metas)
 
-    @cached_property
+    @property
     def avg_doc_length(self) -> float:
+        # Публічно це звичайний @property, а кешує приватний cached_property нижче.
+        # Причина — pyright strict: cached_property не вважається сумісним з @property
+        # у протоколі CorpusStats (scoring.py), і Index перестав би бути CorpusStats.
+        return self._avg_doc_length
+
+    @cached_property
+    def _avg_doc_length(self) -> float:
         # рахується один раз, далі береться з self.__dict__
         return sum(m.length for m in self._metas) / self.num_docs if self._metas else 0.0
 
@@ -115,6 +118,21 @@ class Index(Mapping[str, list[Posting]]):
     def has_positions(self) -> bool:
         first = next(iter(self._postings.values()), None)
         return bool(first) and first[0].positions is not None
+
+    @property
+    def num_postings(self) -> int:
+        return sum(len(plist) for plist in self._postings.values())
+
+    @property
+    def num_tokens(self) -> int:
+        return sum(m.length for m in self._metas)
+
+    def top_terms(self, n: int) -> list[tuple[str, int, int]]:
+        """n найчастіших термів: (терм, df, сумарний tf по корпусу)."""
+        rows = (
+            (term, len(plist), sum(p.tf for p in plist)) for term, plist in self._postings.items()
+        )
+        return heapq.nlargest(n, rows, key=lambda r: (r[2], r[1]))
 
     def df(self, term: str) -> int:
         """Document frequency: у скількох документах є термін."""
@@ -125,7 +143,7 @@ class Index(Mapping[str, list[Posting]]):
         self._postings = {}
         self._metas = []
         # скидаємо закешовані значення cached_property
-        self.__dict__.pop("avg_doc_length", None)
+        self.__dict__.pop("_avg_doc_length", None)
         self.__dict__.pop("has_positions", None)
         self.closed = True
 
@@ -135,7 +153,7 @@ class Index(Mapping[str, list[Posting]]):
 
 
 @contextmanager
-def open_index(path: str | Path) -> Iterator[Index]:
+def open_index(path: str | Path) -> Generator[Index]:
     """with open_index(path) as idx: ... — індекс закривається навіть при винятку."""
     index = Index.load(path)
     log.info("opened %s: %r", path, index)
@@ -144,34 +162,3 @@ def open_index(path: str | Path) -> Iterator[Index]:
     finally:
         index.close()
         log.info("closed %s", path)
-
-
-def main() -> None:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("root", type=Path)
-    ap.add_argument("--out", type=Path, required=True)
-    ap.add_argument("--positions", action="store_true")
-    ap.add_argument("--format", choices=["pickle", "json"], default="pickle")
-    args = ap.parse_args()
-
-    tracemalloc.start()
-    t0 = time.perf_counter()
-    index = Index.build(iter_documents(args.root), with_positions=args.positions)
-    elapsed = time.perf_counter() - t0
-    _, peak = tracemalloc.get_traced_memory()
-
-    print(repr(index))
-    print(f"documents: {index.num_docs}")
-    print(f"terms:     {len(index)}")
-    print(f"build:     {elapsed:.2f}s")
-    print(f"peak mem:  {peak / 2**20:.1f} MiB")
-   
-    t1 = time.perf_counter()
-    index.save(args.out, args.format)
-    save_time = time.perf_counter() - t1
-    size = args.out.stat().st_size / 2**20
-    print(f"saved:     {args.out} ({size:.1f} MiB, {save_time:.2f}s)")
-
-
-if __name__ == "__main__":
-    main()

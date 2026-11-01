@@ -1,17 +1,14 @@
-import unicodedata
 from bisect import bisect_left, bisect_right
 from collections.abc import Iterable
 from pathlib import Path
+from typing import Final
 
-from findex.tokenize import _WORD
+from findex.tokenize import WORD, normalize
 
-ANSI = ("\033[1;33m", "\033[0m")  # жирний жовтий у терміналі
-MARKDOWN = ("**", "**")  # для README
+type Marks = tuple[str, str]
 
-
-def _norm(word: str) -> str:
-    # та сама нормалізація, що й у токенізаторі, — інакше "Whale" не збіжеться з "whale"
-    return unicodedata.normalize("NFC", word).casefold()
+ANSI: Final[Marks] = ("\033[1;33m", "\033[0m")  # жирний жовтий у терміналі
+MARKDOWN: Final[Marks] = ("**", "**")  # для README
 
 
 def _clean(s: str) -> str:
@@ -35,19 +32,19 @@ def make_snippet(
     text: str,
     terms: Iterable[str],
     width: int = 80,
-    mark: tuple[str, str] = MARKDOWN,
+    mark: Marks = MARKDOWN,
 ) -> str:
     """Вікно ±width символів навколо найкращого входження, терми підсвічені.
 
     Найкраще входження — те, у вікні якого найбільше РІЗНИХ термів запиту
-    (при рівності — найраніше).
+    (при рівності — найраніше). Чиста функція: текст приходить ззовні, I/O — у doc_snippet.
     """
     wanted = set(terms)
     # шукаємо по оригінальному тексту, щоб мати справжні позиції символів
     hits = [
         (m.start(), m.end(), w)
-        for m in _WORD.finditer(text)
-        if (w := _norm(m.group())) in wanted
+        for m in WORD.finditer(text)
+        if (w := normalize(m.group())) in wanted
     ]
     if not hits:
         return _clean(text[: 2 * width]) + " …"
@@ -72,7 +69,8 @@ def make_snippet(
     if b < len(text) and text[b - 1].isalnum() and text[b].isalnum():
         b = _word_start(text, b)
 
-    pieces, cur = [], a
+    pieces: list[str] = []
+    cur = a
     for hs, he, _ in hits:
         if hs >= a and he <= b:
             pieces += [text[cur:hs], mark[0], text[hs:he], mark[1]]
@@ -84,6 +82,8 @@ def make_snippet(
     return prefix + _clean("".join(pieces)) + suffix
 
 
-def doc_snippet(path: str | Path, terms: Iterable[str], **kw) -> str:
+def doc_snippet(
+    path: str | Path, terms: Iterable[str], width: int = 80, mark: Marks = MARKDOWN
+) -> str:
     text = Path(path).read_text(encoding="utf-8", errors="replace")
-    return make_snippet(text, terms, **kw)
+    return make_snippet(text, terms, width=width, mark=mark)

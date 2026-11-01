@@ -2,11 +2,11 @@ import argparse
 import timeit
 from pathlib import Path
 
-from findex.boolean import and_merge, and_set, or_merge, or_set
+from findex.boolean import BinOp, IdList, and_merge, and_set, or_merge, or_set
 from findex.storage import load
 
 
-def per_call_us(fn, a, b, number: int) -> float:
+def per_call_us(fn: BinOp, a: IdList, b: IdList, number: int) -> float:
     runs = timeit.repeat(lambda: fn(a, b), number=number, repeat=5)
     return min(runs) / number * 1e6  # мікросекунди на один виклик
 
@@ -18,8 +18,9 @@ def main() -> None:
     args = ap.parse_args()
 
     postings, _ = load(args.index)
-    frequent = sorted(postings, key=lambda t: (-len(postings[t]), -sum(p.tf for p in postings[t])),
-    )[:2]
+    frequent = sorted(postings, key=lambda t: (-len(postings[t]), -sum(p.tf for p in postings[t])))[
+        :2
+    ]
     rare = sorted(postings, key=lambda t: (len(postings[t]), t))[:2]
     ids = {t: [p.doc_id for p in postings[t]] for t in frequent + rare}
 
@@ -33,7 +34,11 @@ def main() -> None:
     print(f"{'pair':<22}{'op':<5}{'merge, us':>11}{'set, us':>10}")
     for name, x, y in pairs:
         a, b = ids[x], ids[y]
-        for op, m, s in (("AND", and_merge, and_set), ("OR", or_merge, or_set)):
+        ops: list[tuple[str, BinOp, BinOp]] = [
+            ("AND", and_merge, and_set),
+            ("OR", or_merge, or_set),
+        ]
+        for op, m, s in ops:
             tm = per_call_us(m, a, b, args.number)
             ts = per_call_us(s, a, b, args.number)
             print(f"{name:<22}{op:<5}{tm:>11.2f}{ts:>10.2f}")
