@@ -11,6 +11,7 @@ from pathlib import Path
 from findex.corpus import Document, iter_documents
 from findex.models import DocMeta, Posting
 from findex.storage import load, save
+from findex.timing import timed
 from findex.tokenize import tokenize
 
 log = logging.getLogger(__name__)
@@ -58,10 +59,12 @@ class Index(Mapping[str, list[Posting]]):
 
     # --- конструктори -------------------------------------------------
     @classmethod
+    @timed
     def build(cls, docs: Iterable[Document], *, with_positions: bool = False) -> "Index":
         return cls(*build_index(docs, with_positions=with_positions))
 
     @classmethod
+    @timed
     def load(cls, path: str | Path) -> "Index":
         return cls(*load(Path(path)))
 
@@ -132,7 +135,7 @@ class Index(Mapping[str, list[Posting]]):
 
 
 @contextmanager
-def open_index(path: Path) -> Iterator[Index]:
+def open_index(path: str | Path) -> Iterator[Index]:
     """with open_index(path) as idx: ... — індекс закривається навіть при винятку."""
     index = Index.load(path)
     log.info("opened %s: %r", path, index)
