@@ -1,0 +1,12 @@
+[
+  {"query": "whale OR ship OR sea", "relevant": ["moby", "treasure_island"]},
+  {"query": "monster OR creature", "relevant": ["frankenstein", "jekyll_hyde", "dracula"]},
+  {"query": "murder OR crime", "relevant": ["crime_punishment", "sherlock", "jekyll_hyde"]},
+  {"query": "marriage love", "relevant": ["pride", "jane_eyre", "wuthering", "little_women"]},
+  {"query": "treasure OR pirate", "relevant": ["treasure_island", "tom_sawyer"]},
+  {"query": "ghost OR spirit", "relevant": ["christmas_carol", "wuthering"]},
+  {"query": "war (soldier OR army)", "relevant": ["war_peace", "war_worlds"]},
+  {"query": "\"time traveller\" OR future", "relevant": ["time_machine"]},
+  {"query": "river raft", "relevant": ["huck_finn", "tom_sawyer"]},
+  {"query": "rabbit OR witch", "relevant": ["alice", "oz"]}
+]
