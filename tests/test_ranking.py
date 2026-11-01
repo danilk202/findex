@@ -50,3 +50,14 @@ def test_scorers_interchangeable(toy):
     a = {r.doc_id for r in search(toy, ["python", "async"], TfIdf())}
     b = {r.doc_id for r in search(toy, ["python", "async"], BM25())}
     assert a == b == {0, 1}
+
+
+def test_candidates_filter(toy):
+    res = search(toy, ["python", "java"], TfIdf(), candidates={1, 2})
+    assert {r.doc_id for r in res} == {1, 2}
+
+
+def test_candidate_without_terms_gets_zero(toy):
+    # запит "NOT python": термів для ранжування нема, але d2 має потрапити у видачу
+    res = search(toy, [], BM25(), candidates={2})
+    assert [(r.doc_id, r.score) for r in res] == [(2, 0.0)]
