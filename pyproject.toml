@@ -1,13 +1,28 @@
 [project]
 name = "findex"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.4.0"
+description = "Навчальний пошуковик: інвертований індекс, BM25, мова запитів і CLI"
 readme = "README.md"
 authors = [
     { name = "Danil Kovtun", email = "danilcreativniy@gmail.com" }
 ]
 requires-python = ">=3.13"
-dependencies = []
+keywords = ["search", "inverted-index", "bm25", "information-retrieval"]
+classifiers = [
+    "Programming Language :: Python :: 3.13",
+    "Environment :: Console",
+    "Topic :: Text Processing :: Indexing",
+]
+dependencies = [
+    "rich>=15.0.0",
+    "typer>=0.27.3",
+]
+
+[project.scripts]
+findex = "findex.cli:app"
+
+[project.urls]
+Repository = "https://github.com/danilk202/findex"
 
 [build-system]
 requires = ["uv_build>=0.12.23,<0.13.0"]
@@ -15,6 +30,48 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "hypothesis>=6.170.14",
+    "pyright>=1.1.414",
     "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
     "ruff>=0.16.10",
+]
+
+[tool.pyright]
+include = ["src"]
+typeCheckingMode = "strict"
+pythonVersion = "3.13"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers"
+markers = ["slow: тест довший за секунду (пропустити: -m 'not slow')"]
+
+[tool.coverage.run]
+source = ["findex"]
+branch = true
+omit = [
+    # одноразові скрипти вимірювань з лаб 1–2: запускаються вручну, результати в README
+    "*/findex/bench.py",
+    "*/findex/bench_io.py",
+    "*/findex/membench.py",
+    "*/findex/eager.py",
+    "*/findex/stats.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+exclude_also = [
+    'if __name__ == "__main__":',
+    "raise NotImplementedError",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+ignore = [
+    "RUF001", "RUF002", "RUF003",  # кирилиця й типографські лапки в рядках/коментарях — навмисно
 ]

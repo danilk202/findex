@@ -11,3 +11,8 @@ wheels/
 data/
 *.bin
 index.json
+
+# тести й покриття
+.coverage
+htmlcov/
+.hypothesis/
