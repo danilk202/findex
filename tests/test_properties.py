@@ -4,7 +4,6 @@ Hypothesis генерує сотні входів, а коли знаходит�
 до мінімального (shrinking), щоб помилку було легко зрозуміти.
 """
 
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -36,17 +35,22 @@ def build(docs: list[str], positions: bool) -> Index:
 # --- 1. load(save(index)) == index --------------------------------------------
 
 
+@pytest.fixture(scope="session")
+def roundtrip_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    # Один каталог на всю сесію: Hypothesis запускає тіло тесту сотні разів в одному
+    # виклику, а function-scoped tmp_path створився б лише раз і викликав би HealthCheck.
+    # Створювати новий TemporaryDirectory на кожен приклад дорого на Windows (антивірус).
+    return tmp_path_factory.mktemp("roundtrip")
+
+
 @pytest.mark.slow
-@settings(max_examples=1000, deadline=None)
+@settings(max_examples=300, deadline=None)
 @given(corpora, st.booleans(), st.sampled_from(["pickle", "json"]))
-def test_save_load_roundtrip(docs: list[str], positions: bool, fmt):
+def test_save_load_roundtrip(roundtrip_dir: Path, docs: list[str], positions: bool, fmt):
     index = build(docs, positions)
-    # tmp_path — function-scoped фікстура, а Hypothesis запускає тест сотні разів
-    # в одному виклику, тому тимчасовий каталог створюємо самі
-    with tempfile.TemporaryDirectory() as tmp:
-        path = Path(tmp) / "idx"
-        index.save(path, fmt)
-        loaded = Index.load(path)
+    path = roundtrip_dir / f"idx.{fmt}"  # перезаписується кожним прикладом
+    index.save(path, fmt)
+    loaded = Index.load(path)
     assert loaded == index
     assert loaded.metas == index.metas
 

@@ -341,6 +341,8 @@ findex -vv search ...                  # DEBUG: дерево запиту, кі�
 
 Без встановлення: `uv run findex ...` або `uv run python -m findex ...`.
 
+**Windows PowerShell 5.1** «з'їдає» подвійні лапки всередині одинарних, тому фразу в запиті треба екранувати: `findex search index.bin '(whale OR ship) \"white whale\"'`. У PowerShell 7 і bash достатньо `'(whale OR ship) "white whale"'`.
+
 **stdout і stderr.** У stdout іде лише результат (таблиця rich або `--json`), тому його можна перенаправити у файл чи `jq`. Логи, смуга прогресу і помилки йдуть у stderr. Logging налаштовується один раз, у `cli.main` (callback typer): 0 → WARNING, `-v` → INFO, `-vv` → DEBUG; модулі лише беруть `logging.getLogger(__name__)`.
 
 **Помилки.** Очікувана помилка — це один рядок у stderr і ненульовий код виходу, без стека викликів:
@@ -391,7 +393,7 @@ findex -vv search ...                  # DEBUG: дерево запиту, кі�
 
 **Властивості Hypothesis** (`tests/test_properties.py`):
 
-1. `Index.load(index.save(...)) == index` для випадкових корпусів, обох форматів, з позиціями і без (1000 прикладів, ≈2 с → позначено `slow`).
+1. `Index.load(index.save(...)) == index` для випадкових корпусів, обох форматів, з позиціями і без (300 прикладів; на Windows сотні записів файлу займають кілька секунд → позначено `slow`, решта тестів коротші за 0.7 с).
 2. Постінги завжди строго відсортовані за `doc_id`, `tf ≥ 1`, `len(positions) == tf`, позиції зростають.
 3. `and_merge` / `or_merge` / `andnot_merge` збігаються з `&`, `|`, `-` над `set` (set тут — «оракул»).
 4. `parse(str(tree)) == tree` для випадкових дерев запитів (`st.recursive`).
