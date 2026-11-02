@@ -1,5 +1,16 @@
 # findex
 
+[![CI](https://github.com/danilk202/findex/actions/workflows/ci.yml/badge.svg)](https://github.com/danilk202/findex/actions/workflows/ci.yml)
+
+Навчальний пошуковик по текстовому корпусу: інвертований індекс, TF-IDF/BM25, мова запитів, CLI.
+
+```
+uv tool install .        # або: uv tool install findex-0.4.0-py3-none-any.whl
+findex index data/ -o index.bin
+findex search index.bin '(whale OR ship) "white whale"'
+findex stats index.bin
+```
+
 Лабораторна 1 з курсу Python: ліниві ітератори, генератори та власний корпус.
 
 ## Корпус
@@ -307,3 +318,119 @@ whale ship captain  [bm25]
 Для сніпета обирається входження, у вікні ±80 символів якого найбільше різних термів запиту. Межі вікна не розрізають слова, переноси рядків замінюються на пробіл. У терміналі терми підсвічуються кольором, при перенаправленні у файл — `**жирним**`.
 
 Сніпети одразу показали обмеження «мішка слів». У The Prince кит — метафора, а в Call of the Wild «whale» взагалі дієслово («відлупцювати»). Формула не знає ні сенсу, ні частини мови, тому обидві книги для неї такі ж кандидати про китів, як і Moby Dick, просто з меншим балом.
+
+
+---
+
+# Лабораторна 4. Справжній інструмент: типи, тести, пакет, CLI
+
+`findex` тепер ставиться однією командою і працює з будь-якого каталогу. Модулі `python -m findex.index` і `python -m findex.search` з лаб 2–3 замінено командою `findex`.
+
+## Встановлення і запуск
+
+```
+uv tool install .                      # кладе findex у PATH
+findex --help
+findex index data/ -o index.bin        # смуга прогресу у stderr; --no-positions, --format json
+findex search index.bin '(whale OR ship) "white whale"' -k 5
+findex search index.bin whale --json > results.json   # чистий JSON у stdout
+findex stats index.bin --top 10        # або --json
+findex -v search ...                   # INFO: час @timed, кеш
+findex -vv search ...                  # DEBUG: дерево запиту, кількість кандидатів
+```
+
+Без встановлення: `uv run findex ...` або `uv run python -m findex ...`.
+
+**stdout і stderr.** У stdout іде лише результат (таблиця rich або `--json`), тому його можна перенаправити у файл чи `jq`. Логи, смуга прогресу і помилки йдуть у stderr. Logging налаштовується один раз, у `cli.main` (callback typer): 0 → WARNING, `-v` → INFO, `-vv` → DEBUG; модулі лише беруть `logging.getLogger(__name__)`.
+
+**Помилки.** Очікувана помилка — це один рядок у stderr і ненульовий код виходу, без стека викликів:
+
+| Ситуація | Повідомлення | Код |
+|---|---|---|
+| немає файлу індексу | `error: index file not found: x.bin (create it: findex index CORPUS)` | 1 |
+| файл не є індексом | `error: x.txt is not a findex index (...)` | 1 |
+| немає каталогу корпусу / порожній | `error: corpus directory not found: ...` / `no .txt files in ...` | 1 |
+| `--out` веде в неіснуючий каталог | `error: output directory not found: ...` (перевіряється до збірки) | 1 |
+| зламаний запит | `error: bad query: unexpected end of query` | 2 |
+| фраза без позицій | `error: phrase search needs an index built with positions (...)` | 2 |
+| невідома опція | стандартне повідомлення typer | 2 |
+
+Усе це перехоплює один context manager `expected_errors()` у `cli.py`. Неочікуваний виняток (баг) навмисно не ховається: typer покаже стек.
+
+## Пакет
+
+`pyproject.toml` (PEP 621): метадані, версія 0.4.0, залежності `typer` і `rich`, група `dev` (pytest, pytest-cov, hypothesis, pyright, ruff). `uv.lock` закомічений, тому CI і будь-яка інша машина ставлять ті самі версії (`uv sync --locked`). `[project.scripts] findex = "findex.cli:app"` під час встановлення створює виконуваний файл `findex` (на Windows `findex.exe`), який імпортує `findex.cli` і викликає `app()`.
+
+## Типи: pyright strict
+
+`[tool.pyright] typeCheckingMode = "strict"` для `src/`: **0 помилок**. Що для цього знадобилось:
+
+- `Scorer` і `CorpusStats` — `typing.Protocol`; pyright перевіряє, що `TfIdf`, `BM25` і `Index` їм відповідають, без жодного наслідування.
+- Рядкові параметри — `Literal`: `Format = Literal["pickle", "json"]`, `Engine = Literal["merge", "set"]`, скорер `Literal["bm25", "tfidf"]`. Typer бере варіанти з тієї самої анотації, тож `--scorer nope` відхиляється ще до запуску.
+- Генератори позначені `Iterator[...]`, вхідні послідовності — `Iterable[...]`; `open_index` — `Generator[Index]` (саме так вимагає `@contextmanager` у сучасному typeshed).
+- JSON-вивід CLI описаний `TypedDict` (`ResultJSON`, `SearchJSON`, `StatsJSON`); сталі — `Final`.
+- `type`-аліаси PEP 695: `type Postings = dict[str, list[Posting]]`.
+
+Що pyright знайшов або змусив змінити:
+
+- `cached_property` не вважається сумісним із `@property` у протоколі, тож `Index` «випав» із `CorpusStats`. Тепер `avg_doc_length` — звичайний `@property`, який читає приватний `cached_property _avg_doc_length` (кешування лишилось).
+- `Phrase.evaluate` ітерувався по `p.positions`, які мають тип `tuple[int, ...] | None`. Додано явну обробку `None`, а фраза без позицій кидає окремий `NeedsPositionsError`.
+- `bench_io.py`: lambda в циклі захоплювала змінні циклу пізно (ruff B023). Значення тепер фіксуються default-аргументами.
+- `membench.py` повертав «або словник масивів, або словник списків» — розділено на дві функції з точними типами.
+
+`# pyright: ignore` у коді рівно три, і кожен із коментарем «навіщо»: два в `storage.load_pickle` (pickle не зберігає типів; форму `(dict, list)` перевіряє `match`, а типи елементів вивести неможливо) і один в `engine.py` (тип, який повертає `lru_cache`, у typeshed має лише приватне ім'я `_lru_cache_wrapper`; імпорт стоїть під `TYPE_CHECKING`).
+
+## Тести
+
+`uv run pytest`: **173 тести**, з них `-m "not slow"` — 172 (менше секунди).
+
+- `conftest.py`: фабрика корпусу `make_corpus`, маленький корпус і індекс (scope `function`, бо тести можуть закрити індекс), а також корпус і файл індексу для CLI (scope `session`: збираються один раз, тести лише читають).
+- Токенізатор: `parametrize` на 21 випадок, з них Unicode — кирилиця, три види апострофа (`'`, `’`, `ʼ`), `Ґ/Ї`, `ß → ss` (casefold), грецька, японська, NFC (`e + ◌́ == é`), емодзі.
+- Збірка індексу, merge і set, парсер (порівняння дерев), обидва скорери з трьома перевірками з лаби 3, save/load і пошкоджені файли.
+- CLI через `typer.testing.CliRunner`: усі три команди, `--json` парситься `json.loads`, stdout і stderr перевіряються окремо (логи не потрапляють у stdout), кожна очікувана помилка — рівно один рядок і правильний код виходу, `-v`/`-vv`, `python -m findex`.
+
+**Властивості Hypothesis** (`tests/test_properties.py`):
+
+1. `Index.load(index.save(...)) == index` для випадкових корпусів, обох форматів, з позиціями і без (1000 прикладів, ≈2 с → позначено `slow`).
+2. Постінги завжди строго відсортовані за `doc_id`, `tf ≥ 1`, `len(positions) == tf`, позиції зростають.
+3. `and_merge` / `or_merge` / `andnot_merge` збігаються з `&`, `|`, `-` над `set` (set тут — «оракул»).
+4. `parse(str(tree)) == tree` для випадкових дерев запитів (`st.recursive`).
+5. BM25 не спадає по tf і не перевищує стелі; TF-IDF лінійний по tf.
+
+### Покриття
+
+`uv run pytest --cov`: **97%** рядків і гілок (865 інструкцій, 16 непокритих).
+
+Навмисно поза покриттям:
+
+- `bench.py`, `bench_io.py`, `membench.py`, `eager.py`, `stats.py` — одноразові скрипти вимірювань з лаб 1–2, запускаються вручну, їхні результати — таблиці в README. Виключені в `[tool.coverage.run] omit`.
+- `__main__.py` — дві строки; тест запускає `python -m findex` в окремому процесі, а coverage дочірні процеси не бачить.
+- `__init__.py`: запасна гілка `PackageNotFoundError` (запуск з сирців без встановлення).
+- `if __name__ == "__main__":` у скриптах.
+
+## CI і реліз
+
+`.github/workflows/ci.yml` на кожен push у `main` і на pull request, на Ubuntu і Windows: `uv sync --locked` → `ruff check` + `ruff format --check` → `pyright` → `pytest --cov`. Стан — бейдж на початку README.
+
+`.github/workflows/release.yml` на тег `v*`: `uv build`, потім wheel ставиться в чистий venv і перевіряється `findex --version` / `findex --help`, і лише після цього створюється GitHub Release з wheel і sdist. Реліз v0.4.0 — сторінка Releases репозиторію.
+
+## Reflection
+
+**Хто і коли перевіряє анотації?** Інтерпретатор їх не перевіряє: анотації просто зберігаються в `__annotations__`. Перевіряє pyright — статично, до запуску (у редакторі й у CI). Виняток у цьому проєкті — typer: він читає анотації в рантаймі, щоб зробити з них опції (`Literal` → вибір, `bool` → прапорець, `int` з `count=True` → `-vvv`).
+
+**Narrowing.** Звуження типу після перевірки: після `if m.lastgroup is not None` pyright знає, що там `str`; після `match data: case (dict(), list())` — що це кортеж зі словника і списку; після `if not postings: continue` — що список не `None`.
+
+**Iterator чи Iterable?** `Iterable` — те, по чому можна пройти (`__iter__`), можливо кілька разів: список, словник. `Iterator` — одноразовий потік із `__next__`, і генератор якраз такий. Тому функції приймають `Iterable` (так їм підходить більше аргументів), а генератори повертають `Iterator`, чесно попереджаючи, що пройти можна лише раз.
+
+**Protocol без наслідування.** Протокол описує форму: які методи й атрибути потрібні. Pyright перевіряє, чи об'єкт має цю форму (структурна типізація), а не чи він нащадок класу. `BM25` ніде не згадує `Scorer`, але має `score(tf, df, doc_len, stats) -> float`, тому підходить. У тестах `SimpleNamespace(num_docs=..., avg_doc_length=...)` теж підходить як `CorpusStats`.
+
+**Scope фікстур.** `function` створює фікстуру заново для кожного тесту (ізоляція, безпечно для змінних об'єктів), `session` — один раз на весь прогін (для дорогого й незмінного). Індекс для CLI-тестів — `session`, бо тести його лише читають; індекс, який тест закриває, — `function`.
+
+**Як писати властивості для merge.** Взяти простішу очевидно правильну реалізацію як оракула (`set`) і порівняти на довільних відсортованих списках без дублікатів: `and_merge(a, b) == sorted(set(a) & set(b))`. Hypothesis сам знайде граничні випадки (порожні списки, однакові, вкладені) і зменшить контрприклад до мінімального.
+
+**Навіщо `src/`-layout.** Код лежить не в корені репозиторію, тож `import findex` у тестах бере встановлений пакет, а не випадково файли з поточного каталогу. Так тести перевіряють те, що реально потрапить у wheel (наприклад, забутий файл одразу зламає імпорт).
+
+**Що створює `[project.scripts]`.** Під час встановлення pip/uv генерує маленький виконуваний файл `findex` у `bin/` (на Windows `Scripts\findex.exe`) оточення: він імпортує `findex.cli` і викликає `app()`. `uv tool install` кладе його в окреме оточення і додає в PATH.
+
+**Чому `log.info("%s took %.2f ms", name, ms)`, а не f-рядок.** Із `%`-форматуванням рядок збирається лише тоді, коли повідомлення справді буде виведене. На рівні WARNING виклики `log.debug(...)` нічого не форматують. f-рядок форматувався б завжди, навіть якщо лог вимкнено. До того ж обробники отримують шаблон і аргументи окремо (зручно групувати однакові повідомлення).
+
