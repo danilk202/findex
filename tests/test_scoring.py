@@ -5,10 +5,7 @@ import pytest
 
 from findex.scoring import BM25, Scorer, TfIdf
 
-
 TOY = SimpleNamespace(num_docs=3, avg_doc_length=10 / 3)
-
-
 
 
 def test_tfidf_hand_calculation():
@@ -18,8 +15,8 @@ def test_tfidf_hand_calculation():
     python_d1 = s.score(tf=1, df=2, doc_len=2, stats=TOY)
     assert python_d0 == pytest.approx(0.811, abs=1e-3)
     assert async_d0 == pytest.approx(1.099, abs=1e-3)
-    assert python_d0 + async_d0 == pytest.approx(1.910, abs=1e-3)  
-    assert python_d1 == pytest.approx(0.405, abs=1e-3)              
+    assert python_d0 + async_d0 == pytest.approx(1.910, abs=1e-3)
+    assert python_d1 == pytest.approx(0.405, abs=1e-3)
 
 
 def test_tfidf_word_everywhere_scores_zero():
@@ -32,7 +29,6 @@ def test_tfidf_is_linear_in_tf():
     assert s.score(200, 2, 4, TOY) == pytest.approx(200 * one)
 
 
-
 STATS = SimpleNamespace(num_docs=25, avg_doc_length=100)
 
 
@@ -42,12 +38,12 @@ def test_bm25_rare_term_beats_frequent():
 
 
 def test_bm25_idf_never_negative():
-    
+
     assert BM25().score(1, df=25, doc_len=100, stats=STATS) > 0
 
 
 def test_bm25_tf_saturates():
-    s = BM25(b=0)  
+    s = BM25(b=0)
     one = s.score(1, 5, 100, STATS)
     assert s.score(20, 5, 100, STATS) / one == pytest.approx(2.33, abs=0.01)
     assert s.score(200, 5, 100, STATS) / one == pytest.approx(2.48, abs=0.01)
@@ -70,8 +66,6 @@ def test_bm25_b_zero_ignores_length():
 
 def test_bm25_defaults():
     assert BM25() == BM25(k1=1.5, b=0.75)
-
-
 
 
 def test_scorers_are_interchangeable():

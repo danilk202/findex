@@ -9,12 +9,14 @@ a, b, c, d = Term("a"), Term("b"), Term("c"), Term("d")
 
 # ---------- лексер ----------
 
+
 def test_lex():
     assert lex('a AND (b "c d")') == ["a", "AND", "(", "b", '"c d"', ")"]
     assert lex("(a)") == ["(", "a", ")"]
 
 
 # ---------- оператори &, |, ~ ----------
+
 
 def test_operators_build_nodes():
     assert (a & b) == And(a, b)
@@ -25,26 +27,29 @@ def test_operators_build_nodes():
 
 # ---------- парсер: порівнюємо дерева, не рядки ----------
 
+
 @pytest.mark.parametrize(
     ("query", "tree"),
     [
         ("a", a),
         ("a AND b", a & b),
-        ("a b", a & b),                        # неявний AND
+        ("a b", a & b),  # неявний AND
         ("a OR b", a | b),
-        ("a OR b c", a | (b & c)),             # AND сильніший за OR
+        ("a OR b c", a | (b & c)),  # AND сильніший за OR
         ("a b OR c", (a & b) | c),
-        ("(a OR b) c", (a | b) & c),           # дужки змінюють пріоритет
+        ("(a OR b) c", (a | b) & c),  # дужки змінюють пріоритет
         ("NOT a", ~a),
         ("a NOT b", a & ~b),
         ("NOT NOT a", ~~a),
-        ("a OR b OR c", (a | b) | c),          # ліва асоціативність
-        ("A or B", a & Term("or") & b),        # оператори лише ВЕЛИКИМИ
+        ("a OR b OR c", (a | b) | c),  # ліва асоціативність
+        ("A or B", a & Term("or") & b),  # оператори лише ВЕЛИКИМИ
         ('"a b"', Phrase(("a", "b"))),
-        ('"a"', a),                            # фраза з одного слова = терм
+        ('"a"', a),  # фраза з одного слова = терм
         (
             'python AND (async OR await) NOT java "event loop"',
-            Term("python") & (Term("async") | Term("await")) & ~Term("java")
+            Term("python")
+            & (Term("async") | Term("await"))
+            & ~Term("java")
             & Phrase(("event", "loop")),
         ),
     ],
@@ -53,9 +58,7 @@ def test_parse(query, tree):
     assert parse(query) == tree
 
 
-@pytest.mark.parametrize(
-    "bad", ["", "(a", "a)", "a AND", "OR a", "NOT", '"a b', "()", '""']
-)
+@pytest.mark.parametrize("bad", ["", "(a", "a)", "a AND", "OR a", "NOT", '"a b', "()", '""'])
 def test_syntax_errors(bad):
     with pytest.raises(QuerySyntaxError):
         parse(bad)
@@ -66,6 +69,7 @@ def test_terms_skip_not():
 
 
 # ---------- evaluate на маленькому корпусі ----------
+
 
 @pytest.fixture
 def index(tmp_path):
@@ -88,7 +92,7 @@ def index(tmp_path):
         ("python OR coffee", {0, 1, 2, 3}),
         ("python NOT java", {0, 3}),
         ("NOT python", {2}),
-        ('"event loop"', {0, 3}),              # у d1 "loop event" — не фраза
+        ('"event loop"', {0, 3}),  # у d1 "loop event" — не фраза
         ('python AND (async OR await) NOT java "event loop"', {0}),
         ("zebra", set()),
     ],

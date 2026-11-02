@@ -39,9 +39,9 @@ def test_stats(index):
 
 
 def test_avg_doc_length_is_cached(index):
-    assert "avg_doc_length" not in index.__dict__
+    assert "_avg_doc_length" not in index.__dict__
     _ = index.avg_doc_length
-    assert index.__dict__["avg_doc_length"] == 4.5
+    assert index.__dict__["_avg_doc_length"] == 4.5
 
 
 def test_repr(index):
