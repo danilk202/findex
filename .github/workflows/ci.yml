@@ -21,7 +21,7 @@ jobs:
           enable-cache: true
 
       - name: Install (exactly as in uv.lock)
-        run: uv sync --locked
+        run: uv sync --locked --all-groups  # bench теж: pyright перевіряє і скрипт замірів
 
       - name: Ruff
         run: |

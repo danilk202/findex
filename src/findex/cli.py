@@ -8,7 +8,8 @@
 
 import json
 import logging
-from collections.abc import Generator, Iterator
+import traceback
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Annotated, Final, Literal, NoReturn, TypedDict
@@ -22,9 +23,10 @@ from rich.table import Table
 from rich.text import Text
 
 from findex import __version__
-from findex.corpus import Document, corpus_files, iter_documents
+from findex.corpus import corpus_files
 from findex.engine import Searcher
 from findex.index import Index, open_index
+from findex.parallel import WorkerError, build_parallel, cpu_count
 from findex.query import NeedsPositionsError, QuerySyntaxError, parse
 from findex.scoring import make_scorer
 from findex.snippets import doc_snippet
@@ -79,6 +81,12 @@ def expected_errors() -> Generator[None]:
         fail(f"bad query: {e}", EXIT_BAD_QUERY)
     except NeedsPositionsError as e:
         fail(f"{e} (rebuild: findex index CORPUS --positions)", EXIT_BAD_QUERY)
+    except WorkerError as e:
+        # Не очікувана помилка, але й не баг CLI: показуємо стек саме воркера (__cause__).
+        # Для процесу в ньому є і текст стека з дочірнього процесу (_RemoteTraceback).
+        if e.__cause__ is not None:
+            err.print("".join(traceback.format_exception(e.__cause__)), highlight=False, end="")
+        fail(str(e))
 
 
 def setup_logging(verbosity: int) -> None:
@@ -127,8 +135,17 @@ def index_cmd(
     fmt: Annotated[
         Literal["pickle", "json"], typer.Option("--format", help="Формат файлу.")
     ] = "pickle",
+    workers: Annotated[
+        int | None,
+        typer.Option("--workers", "-w", min=1, help="Скільки воркерів (типово — усі ядра)."),
+    ] = None,
+    executor: Annotated[
+        # Literal тут, а не аліас ExecutorKind: typer не розгортає PEP 695 `type X = ...`
+        Literal["serial", "threads", "processes"],
+        typer.Option("--executor", "-x", help="Де виконувати build_partial."),
+    ] = "processes",
 ) -> None:
-    """Зібрати індекс з корпусу (зі смугою прогресу)."""
+    """Зібрати індекс з корпусу (зі смугою прогресу): build_partial у воркерах, потім merge."""
     with expected_errors():
         if not corpus.is_dir():
             raise CliError(f"corpus directory not found: {corpus}")
@@ -137,9 +154,10 @@ def index_cmd(
             raise CliError(f"--out points to a directory: {output}")
         if not output.parent.is_dir():
             raise CliError(f"output directory not found: {output.parent}")
-        total = len(corpus_files(corpus))
-        if total == 0:
+        paths = corpus_files(corpus)
+        if not paths:
             raise CliError(f"no .txt files in {corpus}")
+        n_workers = workers if workers is not None else cpu_count()
 
         progress = Progress(
             TextColumn("[bold]indexing"),
@@ -149,20 +167,23 @@ def index_cmd(
             console=err,
         )
         with progress:
-            task = progress.add_task("indexing", total=total)
-
-            def tracked() -> Iterator[Document]:
-                for doc in iter_documents(corpus):
-                    yield doc
-                    progress.advance(task)  # документ уже оброблено, коли просять наступний
-
-            index = Index.build(tracked(), with_positions=positions)
+            task = progress.add_task("indexing", total=len(paths))
+            # прогрес — по шматках: воркер-процес не може смикати смугу в батьківському
+            postings, metas, report = build_parallel(
+                paths,
+                workers=n_workers,
+                executor=executor,
+                with_positions=positions,
+                on_done=lambda chunk: progress.advance(task, len(chunk.paths)),
+            )
+        index = Index(postings, metas)
 
         index.save(output, fmt)
         size = output.stat().st_size / 2**20
         out.print(
             f"indexed {index.num_docs} documents, {len(index)} terms "
-            f"-> {output} ({size:.1f} MiB, {fmt}, positions={positions})",
+            f"-> {output} ({size:.1f} MiB, {fmt}, positions={positions}, "
+            f"{report.executor} x{report.workers}, merge {report.merge_s:.2f} s)",
             highlight=False,
             soft_wrap=True,
         )

@@ -8,6 +8,7 @@ wheels/
 
 # Virtual environments
 .venv
+.venv-ft/
 data/
 *.bin
 index.json

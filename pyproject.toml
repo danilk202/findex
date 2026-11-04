@@ -1,6 +1,6 @@
 [project]
 name = "findex"
-version = "0.4.0"
+version = "0.5.0"
 description = "Навчальний пошуковик: інвертований індекс, BM25, мова запитів і CLI"
 readme = "README.md"
 authors = [
@@ -29,6 +29,10 @@ requires = ["uv_build>=0.12.23,<0.13.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
+bench = [
+    "matplotlib>=3.11.2",
+    "psutil>=7.2.2",
+]
 dev = [
     "hypothesis>=6.170.14",
     "pyright>=1.1.414",
@@ -57,6 +61,10 @@ omit = [
     "*/findex/membench.py",
     "*/findex/eager.py",
     "*/findex/stats.py",
+    # лаба 5: драйвер замірів і демонстрації, запускаються вручну, результати в README
+    "*/findex/parbench.py",
+    "*/findex/race.py",
+    "*/findex/iobench.py",
 ]
 
 [tool.coverage.report]

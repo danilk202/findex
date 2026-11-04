@@ -1,0 +1,861 @@
+{
+  "machine": {
+    "cpu": "12th Gen Intel(R) Core(TM) i5-12450H",
+    "logical_cores": 12,
+    "available_cores": 12,
+    "os": "Windows 11",
+    "python": "3.13.5",
+    "physical_cores": 8,
+    "ram_gib": 15.8,
+    "python_ft": {
+      "version": "3.13.16",
+      "gil": false,
+      "executable": "C:\\Users\\danil\\findex\\.venv-ft\\Scripts\\python.exe"
+    }
+  },
+  "positions": true,
+  "rows": [
+    {
+      "interp": "gil",
+      "python": "3.13.5",
+      "gil": true,
+      "executor": "serial",
+      "workers": 1,
+      "n": 3,
+      "wall_s": 3.467328099999577,
+      "cpu_s": 3.328125,
+      "rss_mib": 186.46484375,
+      "unpickle_s": 0.0,
+      "merge_s": 0.021993599948473275,
+      "speedup": 1.0
+    },
+    {
+      "interp": "gil",
+      "python": "3.13.5",
+      "gil": true,
+      "executor": "threads",
+      "workers": 1,
+      "n": 3,
+      "wall_s": 3.463822599966079,
+      "cpu_s": 3.3125,
+      "rss_mib": 186.6640625,
+      "unpickle_s": 0.0,
+      "merge_s": 0.020948900026269257,
+      "speedup": 1.0010120322078655
+    },
+    {
+      "interp": "gil",
+      "python": "3.13.5",
+      "gil": true,
+      "executor": "threads",
+      "workers": 2,
+      "n": 3,
+      "wall_s": 3.952242900035344,
+      "cpu_s": 3.59375,
+      "rss_mib": 192.0546875,
+      "unpickle_s": 0.0,
+      "merge_s": 0.025536200031638145,
+      "speedup": 0.8773064276916201
+    },
+    {
+      "interp": "gil",
+      "python": "3.13.5",
+      "gil": true,
+      "executor": "threads",
+      "workers": 4,
+      "n": 3,
+      "wall_s": 3.475543399923481,
+      "cpu_s": 3.25,
+      "rss_mib": 198.4453125,
+      "unpickle_s": 0.0,
+      "merge_s": 0.039484099950641394,
+      "speedup": 0.9976362545425026
+    },
+    {
+      "interp": "gil",
+      "python": "3.13.5",
+      "gil": true,
+      "executor": "threads",
+      "workers": 8,
+      "n": 3,
+      "wall_s": 3.8219399999361485,
+      "cpu_s": 3.484375,
+      "rss_mib": 210.16796875,
+      "unpickle_s": 0.0,
+      "merge_s": 0.05080550001002848,
+      "speedup": 0.9072167799749614
+    },
+    {
+      "interp": "gil",
+      "python": "3.13.5",
+      "gil": true,
+      "executor": "threads",
+      "workers": 12,
+      "n": 3,
+      "wall_s": 3.6564212000230327,
+      "cpu_s": 3.40625,
+      "rss_mib": 213.0703125,
+      "unpickle_s": 0.0,
+      "merge_s": 0.06525950005743653,
+      "speedup": 0.9482846505697252
+    },
+    {
+      "interp": "gil",
+      "python": "3.13.5",
+      "gil": true,
+      "executor": "processes",
+      "workers": 1,
+      "n": 3,
+      "wall_s": 5.527983799926005,
+      "cpu_s": 5.03125,
+      "rss_mib": 229.75390625,
+      "unpickle_s": 0.8244324000552297,
+      "merge_s": 0.019753500004298985,
+      "speedup": 0.627231957525995
+    },
+    {
+      "interp": "gil",
+      "python": "3.13.5",
+      "gil": true,
+      "executor": "processes",
+      "workers": 2,
+      "n": 3,
+      "wall_s": 3.1993224000325426,
+      "cpu_s": 5.171875,
+      "rss_mib": 216.40625,
+      "unpickle_s": 0.8389361001318321,
+      "merge_s": 0.03847549995407462,
+      "speedup": 1.0837695194345867
+    },
+    {
+      "interp": "gil",
+      "python": "3.13.5",
+      "gil": true,
+      "executor": "processes",
+      "workers": 4,
+      "n": 3,
+      "wall_s": 2.5451040999032557,
+      "cpu_s": 6.765625,
+      "rss_mib": 214.1171875,
+      "unpickle_s": 0.8615235999459401,
+      "merge_s": 0.04333129990845919,
+      "speedup": 1.3623521726012608
+    },
+    {
+      "interp": "gil",
+      "python": "3.13.5",
+      "gil": true,
+      "executor": "processes",
+      "workers": 8,
+      "n": 3,
+      "wall_s": 2.0271491000894457,
+      "cpu_s": 8.265625,
+      "rss_mib": 217.234375,
+      "unpickle_s": 1.0089521998306736,
+      "merge_s": 0.056981800007633865,
+      "speedup": 1.7104455216671457
+    },
+    {
+      "interp": "gil",
+      "python": "3.13.5",
+      "gil": true,
+      "executor": "processes",
+      "workers": 12,
+      "n": 3,
+      "wall_s": 2.0457550999708474,
+      "cpu_s": 10.046875,
+      "rss_mib": 219.34375,
+      "unpickle_s": 1.00325690000318,
+      "merge_s": 0.055937099969014525,
+      "speedup": 1.694889139002507
+    },
+    {
+      "interp": "ft",
+      "python": "3.13.16t",
+      "gil": false,
+      "executor": "serial",
+      "workers": 1,
+      "n": 3,
+      "wall_s": 4.0964634999400005,
+      "cpu_s": 3.796875,
+      "rss_mib": 244.4609375,
+      "unpickle_s": 0.0,
+      "merge_s": 0.02517249993979931,
+      "speedup": 0.8464198692482825
+    },
+    {
+      "interp": "ft",
+      "python": "3.13.16t",
+      "gil": false,
+      "executor": "threads",
+      "workers": 1,
+      "n": 3,
+      "wall_s": 4.334147999994457,
+      "cpu_s": 3.78125,
+      "rss_mib": 248.19140625,
+      "unpickle_s": 0.0,
+      "merge_s": 0.04300830001011491,
+      "speedup": 0.8000022380417123
+    },
+    {
+      "interp": "ft",
+      "python": "3.13.16t",
+      "gil": false,
+      "executor": "threads",
+      "workers": 2,
+      "n": 3,
+      "wall_s": 2.183966899989173,
+      "cpu_s": 3.578125,
+      "rss_mib": 263.3828125,
+      "unpickle_s": 0.0,
+      "merge_s": 0.04215640004258603,
+      "speedup": 1.5876285029854464
+    },
+    {
+      "interp": "ft",
+      "python": "3.13.16t",
+      "gil": false,
+      "executor": "threads",
+      "workers": 4,
+      "n": 3,
+      "wall_s": 1.6659575999947265,
+      "cpu_s": 4.578125,
+      "rss_mib": 283.0078125,
+      "unpickle_s": 0.0,
+      "merge_s": 0.06561369996052235,
+      "speedup": 2.0812823207568742
+    },
+    {
+      "interp": "ft",
+      "python": "3.13.16t",
+      "gil": false,
+      "executor": "threads",
+      "workers": 8,
+      "n": 3,
+      "wall_s": 1.5344578999793157,
+      "cpu_s": 5.65625,
+      "rss_mib": 326.1015625,
+      "unpickle_s": 0.0,
+      "merge_s": 0.07970070000737906,
+      "speedup": 2.259643682662337
+    },
+    {
+      "interp": "ft",
+      "python": "3.13.16t",
+      "gil": false,
+      "executor": "threads",
+      "workers": 12,
+      "n": 3,
+      "wall_s": 1.4675782000413164,
+      "cpu_s": 7.015625,
+      "rss_mib": 349.85546875,
+      "unpickle_s": 0.0,
+      "merge_s": 0.09437880001496524,
+      "speedup": 2.3626189731504335
+    }
+  ],
+  "pickle": {
+    "mib": 16.180508613586426,
+    "dumps_s": 2.5783744999207556,
+    "loads_s": 3.310882700025104,
+    "dumps_nogc_s": 2.2746136999921873,
+    "loads_nogc_s": 1.4991461000172421
+  },
+  "raw": {
+    "gil/serial/1": [
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "serial",
+        "workers": 1,
+        "wall_s": 3.0403168000048026,
+        "cpu_s": 2.8125,
+        "rss_mib": 186.46484375,
+        "unpickle_s": 0.0,
+        "merge_s": 0.010399000020697713
+      },
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "serial",
+        "workers": 1,
+        "wall_s": 3.467328099999577,
+        "cpu_s": 3.328125,
+        "rss_mib": 186.48046875,
+        "unpickle_s": 0.0,
+        "merge_s": 0.022673500003293157
+      },
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "serial",
+        "workers": 1,
+        "wall_s": 4.559743499965407,
+        "cpu_s": 4.25,
+        "rss_mib": 186.28125,
+        "unpickle_s": 0.0,
+        "merge_s": 0.021993599948473275
+      }
+    ],
+    "gil/threads/1": [
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "threads",
+        "workers": 1,
+        "wall_s": 3.1301371000008658,
+        "cpu_s": 2.875,
+        "rss_mib": 186.6640625,
+        "unpickle_s": 0.0,
+        "merge_s": 0.012534799985587597
+      },
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "threads",
+        "workers": 1,
+        "wall_s": 3.463822599966079,
+        "cpu_s": 3.3125,
+        "rss_mib": 186.75390625,
+        "unpickle_s": 0.0,
+        "merge_s": 0.020948900026269257
+      },
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "threads",
+        "workers": 1,
+        "wall_s": 4.334029100020416,
+        "cpu_s": 3.75,
+        "rss_mib": 186.6015625,
+        "unpickle_s": 0.0,
+        "merge_s": 0.028690799954347312
+      }
+    ],
+    "gil/threads/2": [
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "threads",
+        "workers": 2,
+        "wall_s": 3.583224800066091,
+        "cpu_s": 3.34375,
+        "rss_mib": 191.1640625,
+        "unpickle_s": 0.0,
+        "merge_s": 0.02472190000116825
+      },
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "threads",
+        "workers": 2,
+        "wall_s": 3.952242900035344,
+        "cpu_s": 3.59375,
+        "rss_mib": 192.0546875,
+        "unpickle_s": 0.0,
+        "merge_s": 0.025536200031638145
+      },
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "threads",
+        "workers": 2,
+        "wall_s": 5.217650200007483,
+        "cpu_s": 5.046875,
+        "rss_mib": 192.078125,
+        "unpickle_s": 0.0,
+        "merge_s": 0.046250600018538535
+      }
+    ],
+    "gil/threads/4": [
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "threads",
+        "workers": 4,
+        "wall_s": 3.475543399923481,
+        "cpu_s": 3.25,
+        "rss_mib": 198.4453125,
+        "unpickle_s": 0.0,
+        "merge_s": 0.039484099950641394
+      },
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "threads",
+        "workers": 4,
+        "wall_s": 3.3169275000691414,
+        "cpu_s": 3.03125,
+        "rss_mib": 197.6953125,
+        "unpickle_s": 0.0,
+        "merge_s": 0.03261300001759082
+      },
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "threads",
+        "workers": 4,
+        "wall_s": 6.353608199977316,
+        "cpu_s": 5.484375,
+        "rss_mib": 198.578125,
+        "unpickle_s": 0.0,
+        "merge_s": 0.08827529998961836
+      }
+    ],
+    "gil/threads/8": [
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "threads",
+        "workers": 8,
+        "wall_s": 3.8219399999361485,
+        "cpu_s": 3.4375,
+        "rss_mib": 204.34375,
+        "unpickle_s": 0.0,
+        "merge_s": 0.047333499998785555
+      },
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "threads",
+        "workers": 8,
+        "wall_s": 3.586258600000292,
+        "cpu_s": 3.484375,
+        "rss_mib": 216.40234375,
+        "unpickle_s": 0.0,
+        "merge_s": 0.05080550001002848
+      },
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "threads",
+        "workers": 8,
+        "wall_s": 7.383442900027148,
+        "cpu_s": 7.0,
+        "rss_mib": 210.16796875,
+        "unpickle_s": 0.0,
+        "merge_s": 0.12314719997812063
+      }
+    ],
+    "gil/threads/12": [
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "threads",
+        "workers": 12,
+        "wall_s": 3.6564212000230327,
+        "cpu_s": 3.40625,
+        "rss_mib": 212.83203125,
+        "unpickle_s": 0.0,
+        "merge_s": 0.06525950005743653
+      },
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "threads",
+        "workers": 12,
+        "wall_s": 3.215451700030826,
+        "cpu_s": 3.125,
+        "rss_mib": 213.0703125,
+        "unpickle_s": 0.0,
+        "merge_s": 0.05128790007438511
+      },
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "threads",
+        "workers": 12,
+        "wall_s": 7.500670899986289,
+        "cpu_s": 7.109375,
+        "rss_mib": 213.171875,
+        "unpickle_s": 0.0,
+        "merge_s": 0.08675849996507168
+      }
+    ],
+    "gil/processes/1": [
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "processes",
+        "workers": 1,
+        "wall_s": 5.527983799926005,
+        "cpu_s": 5.03125,
+        "rss_mib": 229.73046875,
+        "unpickle_s": 0.8244324000552297,
+        "merge_s": 0.021009299904108047
+      },
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "processes",
+        "workers": 1,
+        "wall_s": 5.469056700007059,
+        "cpu_s": 4.96875,
+        "rss_mib": 229.81640625,
+        "unpickle_s": 0.7121602999977767,
+        "merge_s": 0.01406210009008646
+      },
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "processes",
+        "workers": 1,
+        "wall_s": 8.620507100014947,
+        "cpu_s": 8.0,
+        "rss_mib": 229.75390625,
+        "unpickle_s": 1.4605697999941185,
+        "merge_s": 0.019753500004298985
+      }
+    ],
+    "gil/processes/2": [
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "processes",
+        "workers": 2,
+        "wall_s": 3.1791777999605983,
+        "cpu_s": 4.875,
+        "rss_mib": 216.546875,
+        "unpickle_s": 0.8389361001318321,
+        "merge_s": 0.03847549995407462
+      },
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "processes",
+        "workers": 2,
+        "wall_s": 3.1993224000325426,
+        "cpu_s": 5.171875,
+        "rss_mib": 216.40625,
+        "unpickle_s": 0.801306499983184,
+        "merge_s": 0.020254399976693094
+      },
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "processes",
+        "workers": 2,
+        "wall_s": 3.631973600015044,
+        "cpu_s": 5.609375,
+        "rss_mib": 216.28515625,
+        "unpickle_s": 1.1937190999742597,
+        "merge_s": 0.042232099920511246
+      }
+    ],
+    "gil/processes/4": [
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "processes",
+        "workers": 4,
+        "wall_s": 2.5451040999032557,
+        "cpu_s": 6.765625,
+        "rss_mib": 214.2265625,
+        "unpickle_s": 0.8615235999459401,
+        "merge_s": 0.04333129990845919
+      },
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "processes",
+        "workers": 4,
+        "wall_s": 2.2072502999799326,
+        "cpu_s": 5.1875,
+        "rss_mib": 214.1171875,
+        "unpickle_s": 0.861055999994278,
+        "merge_s": 0.03963829996064305
+      },
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "processes",
+        "workers": 4,
+        "wall_s": 2.7749686000170186,
+        "cpu_s": 7.0625,
+        "rss_mib": 213.76953125,
+        "unpickle_s": 0.9501761998981237,
+        "merge_s": 0.049514399957843125
+      }
+    ],
+    "gil/processes/8": [
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "processes",
+        "workers": 8,
+        "wall_s": 2.0271491000894457,
+        "cpu_s": 8.265625,
+        "rss_mib": 214.55859375,
+        "unpickle_s": 1.0089521998306736,
+        "merge_s": 0.058900800067931414
+      },
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "processes",
+        "workers": 8,
+        "wall_s": 1.9559593999292701,
+        "cpu_s": 7.78125,
+        "rss_mib": 217.265625,
+        "unpickle_s": 0.9687710998114198,
+        "merge_s": 0.04825009999331087
+      },
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "processes",
+        "workers": 8,
+        "wall_s": 2.2176815000129864,
+        "cpu_s": 8.75,
+        "rss_mib": 217.234375,
+        "unpickle_s": 1.1255061002448201,
+        "merge_s": 0.056981800007633865
+      }
+    ],
+    "gil/processes/12": [
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "processes",
+        "workers": 12,
+        "wall_s": 2.003259899909608,
+        "cpu_s": 10.046875,
+        "rss_mib": 219.36328125,
+        "unpickle_s": 0.9472852000035346,
+        "merge_s": 0.0702939999755472
+      },
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "processes",
+        "workers": 12,
+        "wall_s": 2.0607909000245854,
+        "cpu_s": 10.125,
+        "rss_mib": 219.34375,
+        "unpickle_s": 1.0218844999326393,
+        "merge_s": 0.05257460009306669
+      },
+      {
+        "python": "3.13.5",
+        "gil": true,
+        "executor": "processes",
+        "workers": 12,
+        "wall_s": 2.0457550999708474,
+        "cpu_s": 9.8125,
+        "rss_mib": 219.1875,
+        "unpickle_s": 1.00325690000318,
+        "merge_s": 0.055937099969014525
+      }
+    ],
+    "ft/serial/1": [
+      {
+        "python": "3.13.16t",
+        "gil": false,
+        "executor": "serial",
+        "workers": 1,
+        "wall_s": 4.0964634999400005,
+        "cpu_s": 3.796875,
+        "rss_mib": 247.5390625,
+        "unpickle_s": 0.0,
+        "merge_s": 0.02517249993979931
+      },
+      {
+        "python": "3.13.16t",
+        "gil": false,
+        "executor": "serial",
+        "workers": 1,
+        "wall_s": 3.2719940000679344,
+        "cpu_s": 3.21875,
+        "rss_mib": 244.4609375,
+        "unpickle_s": 0.0,
+        "merge_s": 0.014944800059311092
+      },
+      {
+        "python": "3.13.16t",
+        "gil": false,
+        "executor": "serial",
+        "workers": 1,
+        "wall_s": 4.89658739999868,
+        "cpu_s": 4.515625,
+        "rss_mib": 242.84375,
+        "unpickle_s": 0.0,
+        "merge_s": 0.033060899935662746
+      }
+    ],
+    "ft/threads/1": [
+      {
+        "python": "3.13.16t",
+        "gil": false,
+        "executor": "threads",
+        "workers": 1,
+        "wall_s": 4.334147999994457,
+        "cpu_s": 3.78125,
+        "rss_mib": 248.19140625,
+        "unpickle_s": 0.0,
+        "merge_s": 0.04300830001011491
+      },
+      {
+        "python": "3.13.16t",
+        "gil": false,
+        "executor": "threads",
+        "workers": 1,
+        "wall_s": 3.3218849000986665,
+        "cpu_s": 3.0625,
+        "rss_mib": 249.53515625,
+        "unpickle_s": 0.0,
+        "merge_s": 0.02379480004310608
+      },
+      {
+        "python": "3.13.16t",
+        "gil": false,
+        "executor": "threads",
+        "workers": 1,
+        "wall_s": 5.642446100013331,
+        "cpu_s": 5.34375,
+        "rss_mib": 247.796875,
+        "unpickle_s": 0.0,
+        "merge_s": 0.04961029998958111
+      }
+    ],
+    "ft/threads/2": [
+      {
+        "python": "3.13.16t",
+        "gil": false,
+        "executor": "threads",
+        "workers": 2,
+        "wall_s": 2.089968900079839,
+        "cpu_s": 3.25,
+        "rss_mib": 262.93359375,
+        "unpickle_s": 0.0,
+        "merge_s": 0.04215640004258603
+      },
+      {
+        "python": "3.13.16t",
+        "gil": false,
+        "executor": "threads",
+        "workers": 2,
+        "wall_s": 2.183966899989173,
+        "cpu_s": 3.578125,
+        "rss_mib": 263.3828125,
+        "unpickle_s": 0.0,
+        "merge_s": 0.04015899996738881
+      },
+      {
+        "python": "3.13.16t",
+        "gil": false,
+        "executor": "threads",
+        "workers": 2,
+        "wall_s": 2.252358700032346,
+        "cpu_s": 3.65625,
+        "rss_mib": 267.84765625,
+        "unpickle_s": 0.0,
+        "merge_s": 0.050862799980677664
+      }
+    ],
+    "ft/threads/4": [
+      {
+        "python": "3.13.16t",
+        "gil": false,
+        "executor": "threads",
+        "workers": 4,
+        "wall_s": 1.6659575999947265,
+        "cpu_s": 4.140625,
+        "rss_mib": 285.83984375,
+        "unpickle_s": 0.0,
+        "merge_s": 0.06129230000078678
+      },
+      {
+        "python": "3.13.16t",
+        "gil": false,
+        "executor": "threads",
+        "workers": 4,
+        "wall_s": 1.7670928000006825,
+        "cpu_s": 4.796875,
+        "rss_mib": 283.0078125,
+        "unpickle_s": 0.0,
+        "merge_s": 0.06561369996052235
+      },
+      {
+        "python": "3.13.16t",
+        "gil": false,
+        "executor": "threads",
+        "workers": 4,
+        "wall_s": 1.6589585000183433,
+        "cpu_s": 4.578125,
+        "rss_mib": 282.5546875,
+        "unpickle_s": 0.0,
+        "merge_s": 0.11893420002888888
+      }
+    ],
+    "ft/threads/8": [
+      {
+        "python": "3.13.16t",
+        "gil": false,
+        "executor": "threads",
+        "workers": 8,
+        "wall_s": 1.369135299930349,
+        "cpu_s": 5.265625,
+        "rss_mib": 329.85546875,
+        "unpickle_s": 0.0,
+        "merge_s": 0.06861769990064204
+      },
+      {
+        "python": "3.13.16t",
+        "gil": false,
+        "executor": "threads",
+        "workers": 8,
+        "wall_s": 1.6984708999516442,
+        "cpu_s": 5.859375,
+        "rss_mib": 321.29296875,
+        "unpickle_s": 0.0,
+        "merge_s": 0.07970070000737906
+      },
+      {
+        "python": "3.13.16t",
+        "gil": false,
+        "executor": "threads",
+        "workers": 8,
+        "wall_s": 1.5344578999793157,
+        "cpu_s": 5.65625,
+        "rss_mib": 326.1015625,
+        "unpickle_s": 0.0,
+        "merge_s": 0.10775800002738833
+      }
+    ],
+    "ft/threads/12": [
+      {
+        "python": "3.13.16t",
+        "gil": false,
+        "executor": "threads",
+        "workers": 12,
+        "wall_s": 1.465845900005661,
+        "cpu_s": 7.5,
+        "rss_mib": 347.0625,
+        "unpickle_s": 0.0,
+        "merge_s": 0.09330509998835623
+      },
+      {
+        "python": "3.13.16t",
+        "gil": false,
+        "executor": "threads",
+        "workers": 12,
+        "wall_s": 1.4675782000413164,
+        "cpu_s": 7.015625,
+        "rss_mib": 349.85546875,
+        "unpickle_s": 0.0,
+        "merge_s": 0.09437880001496524
+      },
+      {
+        "python": "3.13.16t",
+        "gil": false,
+        "executor": "threads",
+        "workers": 12,
+        "wall_s": 1.4712400999851525,
+        "cpu_s": 6.78125,
+        "rss_mib": 350.89453125,
+        "unpickle_s": 0.0,
+        "merge_s": 0.09664750006049871
+      }
+    ]
+  }
+}

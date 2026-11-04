@@ -191,3 +191,35 @@ def test_stats_missing_index(tmp_path: Path):
     r = run("stats", tmp_path / "nope.bin")
     assert r.exit_code == 1
     assert r.stderr.startswith("error: index file not found")
+
+
+# --- index: --workers / --executor (лаба 5) ---------------------------------------
+
+
+@pytest.mark.parametrize("executor", ["serial", "threads", "processes"])
+def test_index_executors_give_same_file(search_corpus: Path, tmp_path: Path, executor: str):
+    ref, out = tmp_path / "ref.json", tmp_path / f"{executor}.json"
+    ref_run = run("index", search_corpus, "-o", ref, "-x", "serial", "-w", "1", "--format", "json")
+    assert ref_run.exit_code == 0, ref_run.output
+    r = run("index", search_corpus, "-o", out, "-x", executor, "-w", "3", "--format", "json")
+    assert r.exit_code == 0, r.output
+    assert f"{executor} x3" in r.stdout
+    assert json.loads(out.read_text("utf-8")) == json.loads(ref.read_text("utf-8"))
+
+
+def test_index_bad_workers(search_corpus: Path):
+    assert run("index", search_corpus, "-w", "0").exit_code == 2
+    assert run("index", search_corpus, "-x", "gpu").exit_code == 2
+
+
+def test_index_worker_crash_shows_worker_stack(search_corpus: Path, tmp_path: Path, monkeypatch):
+    def broken(path: Path) -> str:
+        raise RuntimeError(f"disk on fire while reading {path.name}")
+
+    # threads: той самий процес, тож monkeypatch діє і у воркері
+    monkeypatch.setattr("findex.parallel.read_text", broken)
+    r = run("index", search_corpus, "-o", tmp_path / "i.bin", "-x", "threads", "-w", "2")
+    assert r.exit_code == 1
+    assert "Traceback" in r.stderr and "build_partial" in r.stderr  # стек воркера
+    assert r.stderr.splitlines()[-1].startswith("error: worker failed with RuntimeError")
+    assert not (tmp_path / "i.bin").exists()
