@@ -1,0 +1,245 @@
+{
+  "machine": {
+    "cpu": "12th Gen Intel(R) Core(TM) i5-12450H",
+    "logical_cores": 12,
+    "available_cores": 12,
+    "os": "Windows 11",
+    "python": "3.13.5",
+    "pages": 300,
+    "seed": "http://127.0.0.1:8100/"
+  },
+  "rows": [
+    {
+      "name": "c=1",
+      "wall_s": 30.905,
+      "pages_per_s": 9.71,
+      "cpu_s": 2.719,
+      "errors": 1,
+      "retries": 3,
+      "rss": 46.65625,
+      "pages": 300
+    },
+    {
+      "name": "c=5",
+      "wall_s": 7.929,
+      "pages_per_s": 37.83,
+      "cpu_s": 1.844,
+      "errors": 1,
+      "retries": 3,
+      "rss": 46.69921875,
+      "pages": 300
+    },
+    {
+      "name": "c=20",
+      "wall_s": 4.845,
+      "pages_per_s": 61.92,
+      "cpu_s": 2.156,
+      "errors": 1,
+      "retries": 3,
+      "rss": 48.23828125,
+      "pages": 300
+    },
+    {
+      "name": "c=20, без ліміту на хост",
+      "wall_s": 13.063,
+      "pages_per_s": 22.97,
+      "cpu_s": 3.125,
+      "errors": 10,
+      "retries": 85,
+      "rss": 49.8359375,
+      "pages": 300
+    }
+  ],
+  "debug_run": {
+    "pages": 300,
+    "wall_s": 5.877,
+    "cpu_s": 3.578,
+    "pages_per_s": 51.05,
+    "requests": 316,
+    "retries": 3,
+    "errors": 1,
+    "robots_blocked": 1,
+    "peak_rss_mib": 51.37109375,
+    "concurrency": 20,
+    "blocked_warnings": 0,
+    "name": "c=20 debug"
+  },
+  "raw": {
+    "c=1": [
+      {
+        "pages": 300,
+        "wall_s": 30.811,
+        "cpu_s": 2.719,
+        "pages_per_s": 9.74,
+        "requests": 307,
+        "retries": 3,
+        "errors": 1,
+        "robots_blocked": 1,
+        "peak_rss_mib": 46.6328125,
+        "concurrency": 1,
+        "blocked_warnings": 0,
+        "name": "c=1"
+      },
+      {
+        "pages": 300,
+        "wall_s": 32.033,
+        "cpu_s": 3.141,
+        "pages_per_s": 9.37,
+        "requests": 307,
+        "retries": 3,
+        "errors": 1,
+        "robots_blocked": 1,
+        "peak_rss_mib": 47.140625,
+        "concurrency": 1,
+        "blocked_warnings": 0,
+        "name": "c=1"
+      },
+      {
+        "pages": 300,
+        "wall_s": 30.905,
+        "cpu_s": 2.391,
+        "pages_per_s": 9.71,
+        "requests": 307,
+        "retries": 3,
+        "errors": 1,
+        "robots_blocked": 1,
+        "peak_rss_mib": 46.65625,
+        "concurrency": 1,
+        "blocked_warnings": 0,
+        "name": "c=1"
+      }
+    ],
+    "c=5": [
+      {
+        "pages": 300,
+        "wall_s": 7.929,
+        "cpu_s": 1.828,
+        "pages_per_s": 37.83,
+        "requests": 307,
+        "retries": 3,
+        "errors": 1,
+        "robots_blocked": 1,
+        "peak_rss_mib": 46.734375,
+        "concurrency": 5,
+        "blocked_warnings": 0,
+        "name": "c=5"
+      },
+      {
+        "pages": 300,
+        "wall_s": 8.006,
+        "cpu_s": 1.844,
+        "pages_per_s": 37.47,
+        "requests": 307,
+        "retries": 3,
+        "errors": 1,
+        "robots_blocked": 1,
+        "peak_rss_mib": 46.69921875,
+        "concurrency": 5,
+        "blocked_warnings": 0,
+        "name": "c=5"
+      },
+      {
+        "pages": 300,
+        "wall_s": 6.978,
+        "cpu_s": 2.031,
+        "pages_per_s": 42.99,
+        "requests": 307,
+        "retries": 3,
+        "errors": 1,
+        "robots_blocked": 1,
+        "peak_rss_mib": 46.4296875,
+        "concurrency": 5,
+        "blocked_warnings": 0,
+        "name": "c=5"
+      }
+    ],
+    "c=20": [
+      {
+        "pages": 300,
+        "wall_s": 4.865,
+        "cpu_s": 2.0,
+        "pages_per_s": 61.66,
+        "requests": 307,
+        "retries": 3,
+        "errors": 1,
+        "robots_blocked": 1,
+        "peak_rss_mib": 48.27734375,
+        "concurrency": 20,
+        "blocked_warnings": 0,
+        "name": "c=20"
+      },
+      {
+        "pages": 300,
+        "wall_s": 4.804,
+        "cpu_s": 2.312,
+        "pages_per_s": 62.44,
+        "requests": 308,
+        "retries": 3,
+        "errors": 1,
+        "robots_blocked": 1,
+        "peak_rss_mib": 48.12890625,
+        "concurrency": 20,
+        "blocked_warnings": 0,
+        "name": "c=20"
+      },
+      {
+        "pages": 300,
+        "wall_s": 4.845,
+        "cpu_s": 2.156,
+        "pages_per_s": 61.92,
+        "requests": 307,
+        "retries": 3,
+        "errors": 1,
+        "robots_blocked": 1,
+        "peak_rss_mib": 48.23828125,
+        "concurrency": 20,
+        "blocked_warnings": 0,
+        "name": "c=20"
+      }
+    ],
+    "c=20, без ліміту на хост": [
+      {
+        "pages": 300,
+        "wall_s": 14.262,
+        "cpu_s": 3.109,
+        "pages_per_s": 21.03,
+        "requests": 412,
+        "retries": 99,
+        "errors": 22,
+        "robots_blocked": 1,
+        "peak_rss_mib": 50.28125,
+        "concurrency": 20,
+        "blocked_warnings": 0,
+        "name": "c=20, без ліміту на хост"
+      },
+      {
+        "pages": 300,
+        "wall_s": 13.063,
+        "cpu_s": 3.125,
+        "pages_per_s": 22.97,
+        "requests": 375,
+        "retries": 85,
+        "errors": 10,
+        "robots_blocked": 1,
+        "peak_rss_mib": 49.8359375,
+        "concurrency": 20,
+        "blocked_warnings": 0,
+        "name": "c=20, без ліміту на хост"
+      },
+      {
+        "pages": 300,
+        "wall_s": 11.452,
+        "cpu_s": 3.328,
+        "pages_per_s": 26.2,
+        "requests": 373,
+        "retries": 69,
+        "errors": 12,
+        "robots_blocked": 1,
+        "peak_rss_mib": 49.52734375,
+        "concurrency": 20,
+        "blocked_warnings": 0,
+        "name": "c=20, без ліміту на хост"
+      }
+    ]
+  }
+}

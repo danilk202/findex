@@ -36,7 +36,7 @@ def build_index(
             for term, tf in counts.items():
                 postings[term].append(Posting(doc.doc_id, tf))
 
-        metas.append(DocMeta(doc.doc_id, str(doc.path), doc.path.stem, length))
+        metas.append(DocMeta(doc.doc_id, str(doc.path), doc.title or doc.path.stem, length))
 
     return dict(postings), metas  # dict(): щоб пошук по відсутньому терміну не створював записів
 

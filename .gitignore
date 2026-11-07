@@ -17,3 +17,11 @@ index.json
 .coverage
 htmlcov/
 .hypothesis/
+
+# краулер
+pages.jsonl
+crawl.log
+/bench/lab6/pages.jsonl
+/bench/lab6/stats.json
+/bench/lab6/crawl.log
+/bench/lab6/mirror.err

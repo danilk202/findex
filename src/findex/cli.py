@@ -9,7 +9,7 @@
 import json
 import logging
 import traceback
-from collections.abc import Generator
+from collections.abc import Generator, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Annotated, Final, Literal, NoReturn, TypedDict
@@ -23,10 +23,13 @@ from rich.table import Table
 from rich.text import Text
 
 from findex import __version__
-from findex.corpus import corpus_files
+from findex.corpus import Document, corpus_files, is_jsonl, iter_documents
+from findex.crawlcmd import crawl_to_file
+from findex.crawler import CrawlConfig
 from findex.engine import Searcher
-from findex.index import Index, open_index
-from findex.parallel import WorkerError, build_parallel, cpu_count
+from findex.fetch import RetryPolicy
+from findex.index import Index, build_index, open_index
+from findex.parallel import ExecutorKind, WorkerError, build_parallel, cpu_count
 from findex.query import NeedsPositionsError, QuerySyntaxError, parse
 from findex.scoring import make_scorer
 from findex.snippets import doc_snippet
@@ -36,7 +39,7 @@ log = logging.getLogger("findex.cli")
 
 app = typer.Typer(
     name="findex",
-    help="findex — навчальний пошуковик по текстовому корпусу.",
+    help="findex — навчальний пошуковик: краулер, індекс, пошук.",
     no_args_is_help=True,
     add_completion=False,
     pretty_exceptions_show_locals=False,
@@ -125,7 +128,9 @@ def main(
 
 @app.command("index")
 def index_cmd(
-    corpus: Annotated[Path, typer.Argument(help="Каталог з .txt-файлами.")],
+    corpus: Annotated[
+        Path, typer.Argument(help="Каталог з .txt-файлами або pages.jsonl від findex crawl.")
+    ],
     output: Annotated[Path, typer.Option("--out", "-o", help="Куди зберегти індекс.")] = Path(
         "index.bin"
     ),
@@ -147,46 +152,150 @@ def index_cmd(
 ) -> None:
     """Зібрати індекс з корпусу (зі смугою прогресу): build_partial у воркерах, потім merge."""
     with expected_errors():
-        if not corpus.is_dir():
+        jsonl = is_jsonl(corpus)
+        if not jsonl and not corpus.is_dir():
             raise CliError(f"corpus directory not found: {corpus}")
         # перевіряємо, куди писати, ДО збірки — а не після хвилини роботи
         if output.is_dir():
             raise CliError(f"--out points to a directory: {output}")
         if not output.parent.is_dir():
             raise CliError(f"output directory not found: {output.parent}")
-        paths = corpus_files(corpus)
-        if not paths:
-            raise CliError(f"no .txt files in {corpus}")
-        n_workers = workers if workers is not None else cpu_count()
-
-        progress = Progress(
-            TextColumn("[bold]indexing"),
-            BarColumn(),
-            MofNCompleteColumn(),
-            TimeElapsedColumn(),
-            console=err,
-        )
-        with progress:
-            task = progress.add_task("indexing", total=len(paths))
-            # прогрес — по шматках: воркер-процес не може смикати смугу в батьківському
-            postings, metas, report = build_parallel(
-                paths,
-                workers=n_workers,
-                executor=executor,
-                with_positions=positions,
-                on_done=lambda chunk: progress.advance(task, len(chunk.paths)),
-            )
-        index = Index(postings, metas)
+        if jsonl:
+            index, how = _index_jsonl(corpus, positions)
+        else:
+            index, how = _index_dir(corpus, positions, workers, executor)
+        if index.num_docs == 0:
+            raise CliError(f"no documents in {corpus}")
 
         index.save(output, fmt)
         size = output.stat().st_size / 2**20
         out.print(
             f"indexed {index.num_docs} documents, {len(index)} terms "
-            f"-> {output} ({size:.1f} MiB, {fmt}, positions={positions}, "
-            f"{report.executor} x{report.workers}, merge {report.merge_s:.2f} s)",
+            f"-> {output} ({size:.1f} MiB, {fmt}, positions={positions}, {how})",
             highlight=False,
             soft_wrap=True,
         )
+
+
+def _progress() -> Progress:
+    return Progress(
+        TextColumn("[bold]indexing"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        TimeElapsedColumn(),
+        console=err,
+    )
+
+
+def _index_dir(
+    corpus: Path, positions: bool, workers: int | None, executor: ExecutorKind
+) -> tuple[Index, str]:
+    paths = corpus_files(corpus)
+    if not paths:
+        raise CliError(f"no .txt files in {corpus}")
+    progress = _progress()
+    with progress:
+        task = progress.add_task("indexing", total=len(paths))
+        # прогрес — по шматках: воркер-процес не може смикати смугу в батьківському
+        postings, metas, report = build_parallel(
+            paths,
+            workers=workers if workers is not None else cpu_count(),
+            executor=executor,
+            with_positions=positions,
+            on_done=lambda chunk: progress.advance(task, len(chunk.paths)),
+        )
+    how = f"{report.executor} x{report.workers}, merge {report.merge_s:.2f} s"
+    return Index(postings, metas), how
+
+
+def _index_jsonl(corpus: Path, positions: bool) -> tuple[Index, str]:
+    """JSONL від краулера — один файл: читаємо ліниво по рядку, будуємо послідовно.
+
+    Це вже звичайна синхронна програма: цикл подій краулера давно завершився.
+    """
+    progress = _progress()
+    with progress:
+        task = progress.add_task("indexing", total=None)
+
+        def tracked() -> Iterator[Document]:
+            for doc in iter_documents(corpus):
+                yield doc
+                progress.advance(task)
+
+        postings, metas = build_index(tracked(), with_positions=positions)
+    return Index(postings, metas), "jsonl, serial"
+
+
+# ------------------------------------------------------------------ crawl
+
+
+@app.command()
+def crawl(
+    urls: Annotated[list[str], typer.Argument(help="Початкові адреси (seed).")],
+    output: Annotated[Path, typer.Option("--out", "-o", help="JSONL: рядок на сторінку.")] = Path(
+        "pages.jsonl"
+    ),
+    max_pages: Annotated[
+        int, typer.Option("--max-pages", "-n", min=1, help="Стеля сторінок.")
+    ] = 200,
+    concurrency: Annotated[
+        int, typer.Option("--concurrency", "-c", min=1, help="Одночасних запитів усього.")
+    ] = 5,
+    per_host: Annotated[
+        int, typer.Option("--per-host", min=1, help="Одночасних запитів до одного хоста.")
+    ] = 2,
+    delay: Annotated[
+        float, typer.Option("--delay", min=0, help="Мін. пауза між запитами до хоста, с.")
+    ] = 0.25,
+    timeout: Annotated[float, typer.Option(min=0.1, help="Таймаут однієї спроби, с.")] = 10.0,
+    retries: Annotated[int, typer.Option(min=0, max=3, help="Повторів (429, 5xx, таймаут).")] = 3,
+    max_depth: Annotated[int | None, typer.Option(min=0, help="Глибина посилань.")] = None,
+    allow_host: Annotated[
+        list[str] | None,
+        typer.Option("--allow-host", help="Дозволений хост (типово — хости seed)."),
+    ] = None,
+    log_file: Annotated[Path, typer.Option("--log", help="Статус кожного URL.")] = Path(
+        "crawl.log"
+    ),
+    debug: Annotated[
+        bool, typer.Option("--debug", help="asyncio debug: попередження про блокування циклу.")
+    ] = False,
+    stats_json: Annotated[
+        Path | None, typer.Option("--stats-json", help="Підсумок у JSON (для замірів).")
+    ] = None,
+    live: Annotated[bool, typer.Option("--live/--no-live", help="Живий екран rich.")] = True,
+) -> None:
+    """Асинхронний краулер: пише сторінки в JSONL у міру надходження, лог — у crawl.log."""
+    with expected_errors():
+        if output.is_dir() or not output.parent.is_dir():
+            raise CliError(f"bad --out: {output}")
+        config = CrawlConfig(
+            max_pages=max_pages,
+            concurrency=concurrency,
+            per_host=per_host,
+            host_delay=delay,
+            timeout=timeout,
+            max_depth=max_depth,
+            allowed_hosts=frozenset(h.lower() for h in allow_host) if allow_host else None,
+            policy=RetryPolicy(retries=retries),
+        )
+        try:
+            summary = crawl_to_file(
+                urls, config, output, log_file, debug=debug, console=err if live else None
+            )
+        except ValueError as e:  # жодної валідної http(s) адреси
+            raise CliError(str(e)) from e
+    if stats_json:
+        stats_json.write_text(json.dumps(summary.to_json(), indent=2), encoding="utf-8")
+    out.print(
+        f"crawled {summary.pages} pages -> {output} in {summary.wall_s:.1f} s "
+        f"({summary.pages_per_s:.1f} pages/s, {summary.errors} errors, "
+        f"{summary.retries} retries); log: {log_file}",
+        highlight=False,
+        soft_wrap=True,
+    )
+    if summary.pages == 0:
+        fail(f"no pages crawled, see {log_file}")
 
 
 # ------------------------------------------------------------------ search

@@ -3,6 +3,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Final
 
+from findex.corpus import read_text
 from findex.tokenize import WORD, normalize
 
 type Marks = tuple[str, str]
@@ -85,5 +86,5 @@ def make_snippet(
 def doc_snippet(
     path: str | Path, terms: Iterable[str], width: int = 80, mark: Marks = MARKDOWN
 ) -> str:
-    text = Path(path).read_text(encoding="utf-8", errors="replace")
+    text = read_text(Path(path))  # файл або локатор pages.jsonl#17
     return make_snippet(text, terms, width=width, mark=mark)

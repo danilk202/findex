@@ -1,7 +1,7 @@
 [project]
 name = "findex"
-version = "0.5.0"
-description = "Навчальний пошуковик: інвертований індекс, BM25, мова запитів і CLI"
+version = "0.6.0"
+description = "Навчальний пошуковик: асинхронний краулер, інвертований індекс, BM25, мова запитів і CLI"
 readme = "README.md"
 authors = [
     { name = "Danil Kovtun", email = "danilcreativniy@gmail.com" }
@@ -14,6 +14,7 @@ classifiers = [
     "Topic :: Text Processing :: Indexing",
 ]
 dependencies = [
+    "httpx>=0.28.1",
     "rich>=15.0.0",
     "typer>=0.27.3",
 ]
@@ -65,6 +66,10 @@ omit = [
     "*/findex/parbench.py",
     "*/findex/race.py",
     "*/findex/iobench.py",
+    # лаба 6: локальне дзеркало, драйвер замірів і демо затримки циклу
+    "*/findex/mirror.py",
+    "*/findex/crawlbench.py",
+    "*/findex/looplag.py",
 ]
 
 [tool.coverage.report]
