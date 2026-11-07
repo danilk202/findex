@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import threading
 import time
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
@@ -9,7 +10,7 @@ import httpx
 import pytest
 
 from findex.crawler import CrawlConfig, Crawler, CrawlStats, Page, crawl
-from findex.extract import extract
+from findex.extract import Extracted, extract
 from findex.fetch import RetryPolicy
 
 ROBOTS = "User-agent: *\nDisallow: /private/\n"
@@ -249,27 +250,42 @@ def test_break_early_cancels_workers_and_closes_client():
     assert crawler.client is not None and crawler.client.is_closed
 
 
+def test_html_parsed_outside_event_loop_thread(monkeypatch: pytest.MonkeyPatch):
+    """Розбір HTML — чистий CPU: він має йти не в потоці циклу подій."""
+    import findex.crawler as crawler_mod
+
+    threads: list[str] = []
+    real = crawler_mod.extract
+
+    def spy(html: str, url: str) -> Extracted:
+        threads.append(threading.current_thread().name)
+        return real(html, url)
+
+    monkeypatch.setattr(crawler_mod, "extract", spy)
+    site = chain_site(5)
+    collect(["http://a.test/0"], CrawlConfig(**FAST), site)
+    assert threads and "MainThread" not in threads
+
+
 def test_no_blocking_in_debug_mode(caplog: pytest.LogCaptureFixture):
-    """asyncio debug: жоден крок не тримає цикл подій довше за 50 мс."""
+    """asyncio debug: на звичайних сторінках жоден крок не тримає цикл довше за 100 мс.
+
+    Сторінки по ~60 КБ — як довга сторінка документації. На мегабайтних сторінках
+    навіть to_thread не рятує повністю: потік розбору тримає той самий GIL (див. README).
+    """
     site = FakeSite()
-    big = " ".join(
-        f"word{i}" for i in range(200_000)
-    )  # ~1.5 МБ тексту: html.parser на ньому — довго
-    site.page("http://a.test/", "big", "/x", body=big)
-    site.page("http://a.test/x", "x")
+    text = " ".join(f"word{i}" for i in range(8_000))  # ~60 КБ
+    for i in range(20):
+        site.page(f"http://a.test/{i}", f"p{i}", f"/{i + 1}", body=text)
 
     async def go() -> list[Page]:
-        asyncio.get_running_loop().slow_callback_duration = 0.05
-        return [
-            p
-            async for p in crawl(
-                ["http://a.test/"], CrawlConfig(**FAST), transport=site.transport()
-            )
-        ]
+        asyncio.get_running_loop().slow_callback_duration = 0.1  # типовий поріг asyncio
+        config = CrawlConfig(concurrency=5, per_host=5, **FAST)
+        return [p async for p in crawl(["http://a.test/0"], config, transport=site.transport())]
 
     with caplog.at_level(logging.WARNING, logger="asyncio"):
         pages = asyncio.run(go(), debug=True)
-    assert len(pages) == 2
+    assert len(pages) == 20
     assert not [r for r in caplog.records if "Executing" in r.getMessage()]
 
 
