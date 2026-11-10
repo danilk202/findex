@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}findex — пошук по класичних книжках{% endblock %}</title>
+  <meta name="description" content="Навчальний пошуковик: інвертований індекс, BM25 і мова запитів над 25 книжками Project Gutenberg.">
+  <link rel="icon" href="{{ url_for('static', path='favicon.svg') }}" type="image/svg+xml">
+  <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}?v={{ version }}">
+  <script src="{{ url_for('static', path='htmx.min.js') }}" defer></script>
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/"><span class="dot"></span>findex</a>
+    {% block header %}{% endblock %}
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <footer>
+    <span>findex {{ version }} · 25 книжок <a href="https://www.gutenberg.org/">Project Gutenberg</a> (public domain)</span>
+    <span><a href="/api/docs">API</a> · <a href="/stats">stats</a> · <a href="https://github.com/danilk202/findex">GitHub</a></span>
+  </footer>
+</body>
+</html>

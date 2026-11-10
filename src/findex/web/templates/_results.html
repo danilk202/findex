@@ -1,0 +1,61 @@
+{% if error %}
+  <div class="notice">{{ error }}</div>
+{% elif data %}
+  {% if data.hits %}
+    {% set top = data.hits[0].score if data.hits[0].score > 0 else 1 %}
+    <p class="meta">
+      {{ data.total }} {% if data.total % 10 == 1 and data.total % 100 != 11 %}документ{% elif data.total % 10 in [2,3,4] and data.total % 100 not in [12,13,14] %}документи{% else %}документів{% endif %}
+      · <code>{{ data.tree }}</code> · {{ data.scorer | upper }} · {{ '%.1f' | format(data.took_ms) }} мс
+    </p>
+    <ol class="hits">
+      {% for h in data.hits %}
+      <li class="hit">
+        <div class="hit-head">
+          <span class="rank">{{ h.rank }}</span>
+          <a class="title" href="/view/{{ h.doc_id }}?q={{ data.query | urlencode }}#hit">{{ h.title }}</a>
+          <span class="score" title="бал {{ data.scorer | upper }}">
+            <span class="bar"><span style="width: {{ (100 * h.score / top) | round(0) | int }}%"></span></span>
+            {{ '%.3f' | format(h.score) }}
+          </span>
+        </div>
+        <p class="snippet">{% for text, hit in h.snippet %}{% if hit %}<mark>{{ text }}</mark>{% else %}{{ text }}{% endif %}{% endfor %}</p>
+        <p class="hit-foot">{% if h.author %}{{ h.author }} · {% endif %}{{ '{:,}'.format(h.tokens).replace(',', ' ') }} слів</p>
+      </li>
+      {% endfor %}
+    </ol>
+    {% if data.pages > 1 %}
+    <nav class="pager" aria-label="Сторінки результатів" hx-target="#results" hx-push-url="true">
+      {% if data.page > 1 %}
+        <a hx-get="{{ request.url.include_query_params(page=data.page - 1) }}" href="{{ request.url.include_query_params(page=data.page - 1) }}" rel="prev">‹ Назад</a>
+      {% endif %}
+      {% for n in range(1, data.pages + 1) %}
+        {% if n == data.page %}<span class="current" aria-current="page">{{ n }}</span>
+        {% else %}<a hx-get="{{ request.url.include_query_params(page=n) }}" href="{{ request.url.include_query_params(page=n) }}">{{ n }}</a>{% endif %}
+      {% endfor %}
+      {% if data.page < data.pages %}
+        <a hx-get="{{ request.url.include_query_params(page=data.page + 1) }}" href="{{ request.url.include_query_params(page=data.page + 1) }}" rel="next">Далі ›</a>
+      {% endif %}
+    </nav>
+    {% endif %}
+  {% elif data.total %}
+    <div class="notice">На сторінці {{ data.page }} результатів уже немає. <a href="{{ request.url.include_query_params(page=1) }}">До першої</a></div>
+  {% else %}
+    <div class="notice">Нічого не знайдено для <code>{{ data.tree }}</code>. Спробуйте OR замість пробілу між словами.</div>
+  {% endif %}
+{% else %}
+  <div class="intro">
+    <p class="label">Спробуйте</p>
+    <div class="chips">
+      {% for ex in examples %}<a class="chip" href="/?q={{ ex | urlencode }}">{{ ex }}</a>{% endfor %}
+    </div>
+    <dl class="syntax">
+      <div><dt><code>whale ship</code></dt><dd>обидва слова (AND можна не писати)</dd></div>
+      <div><dt><code>whale OR ship</code></dt><dd>будь-яке зі слів</dd></div>
+      <div><dt><code>"white whale"</code></dt><dd>точна фраза</dd></div>
+      <div><dt><code>love NOT war</code></dt><dd>без слова</dd></div>
+      <div><dt><code>(ghost OR spirit) christmas</code></dt><dd>дужки групують</dd></div>
+    </dl>
+    {% if docs %}<p class="meta">У індексі {{ docs }} документів.</p>{% endif %}
+  </div>
+{% endif %}
+{% if partial and q %}<div id="hero-copy" hx-swap-oob="true"></div>{% endif %}

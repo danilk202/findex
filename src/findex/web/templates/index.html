@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{% if q %}{{ q }} — findex{% else %}{{ super() }}{% endif %}{% endblock %}
+{% block content %}
+<section class="hero">
+  <div id="hero-copy">{% if not q %}
+    <h1>Пошук по 25 класичних книжках</h1>
+    <p class="lead">Від «Мобі Діка» до «Війни і миру»: BM25, булеві оператори і пошук фраз.</p>
+  {% endif %}</div>
+  <form class="search" action="/" method="get" role="search"
+        hx-get="/" hx-target="#results" hx-push-url="true" hx-indicator="#results">
+    <input type="search" name="q" value="{{ q }}" placeholder='whale OR ship "white whale"'
+           aria-label="Запит" autocomplete="off" autofocus maxlength="500">
+    <select name="scorer" aria-label="Формула рейтингу">
+      {% for s in scorers %}<option value="{{ s }}" {% if s == scorer %}selected{% endif %}>{{ s | upper }}</option>{% endfor %}
+    </select>
+    <button type="submit">Шукати</button>
+  </form>
+</section>
+<section id="results" class="results" aria-live="polite">
+  {% include "_results.html" %}
+</section>
+{% endblock %}

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ doc.title }} — findex{% endblock %}
+{% block header %}
+  <form class="search small" action="/" method="get" role="search">
+    <input type="search" name="q" value="{{ q }}" placeholder="Новий запит" aria-label="Запит">
+  </form>
+{% endblock %}
+{% block content %}
+<article class="doc">
+  <p class="crumbs">
+    {% if q %}<a href="/?q={{ q | urlencode }}">‹ до результатів «{{ q }}»</a>{% else %}<a href="/">‹ на головну</a>{% endif %}
+  </p>
+  <h1>{{ doc.title }}</h1>
+  <p class="meta">
+    {% if doc.author %}{{ doc.author }} · {% endif %}{{ '{:,}'.format(doc.meta.length).replace(',', ' ') }} слів
+    · частина {{ doc.part }} з {{ doc.parts }}
+    {% set hl = doc.text | selectattr(1) | list | length %}
+    {% if q %}· підсвічено {{ hl }} {% if hl % 10 == 1 and hl % 100 != 11 %}збіг{% elif hl % 10 in [2,3,4] and hl % 100 not in [12,13,14] %}збіги{% else %}збігів{% endif %}{% endif %}
+  </p>
+  {% macro pager() %}
+    {% if doc.parts > 1 %}
+    <nav class="pager" aria-label="Частини документа">
+      {% if doc.part > 1 %}<a href="{{ request.url.include_query_params(part=doc.part - 1) }}" rel="prev">‹ Попередня</a>{% endif %}
+      <span class="current">{{ doc.part }} / {{ doc.parts }}</span>
+      {% if doc.part < doc.parts %}<a href="{{ request.url.include_query_params(part=doc.part + 1) }}" rel="next">Наступна ›</a>{% endif %}
+    </nav>
+    {% endif %}
+  {% endmacro %}
+  {{ pager() }}
+  <div class="text">{% for text, hit in doc.text %}{% if hit %}<mark{% if loop.index0 == doc.focus %} id="hit"{% endif %}>{{ text }}</mark>{% else %}{{ text }}{% endif %}{% endfor %}</div>
+  {{ pager() }}
+</article>
+{% endblock %}

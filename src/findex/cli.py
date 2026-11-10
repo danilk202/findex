@@ -1,4 +1,4 @@
-"""Командний рядок findex: index / search / stats.
+"""Командний рядок findex: index / crawl / search / stats / serve.
 
 Правила виводу:
 - stdout — лише результат (таблиця або --json), щоб його можна було перенаправити;
@@ -8,6 +8,7 @@
 
 import json
 import logging
+import os
 import traceback
 from collections.abc import Generator, Iterator
 from contextlib import contextmanager
@@ -477,3 +478,61 @@ def stats(
         for term, df, cf in data["top_terms"]:
             terms.add_row(term, str(df), f"{cf:,}")
         out.print(terms)
+
+
+# ------------------------------------------------------------------ serve
+
+
+@app.command()
+def serve(
+    host: Annotated[
+        str, typer.Option(envvar="HOST", help="Адреса (у контейнері — 0.0.0.0).")
+    ] = "127.0.0.1",
+    port: Annotated[
+        int, typer.Option("--port", "-p", envvar="PORT", min=1, max=65535, help="Порт.")
+    ] = 8000,
+    workers: Annotated[
+        int,
+        typer.Option("--workers", "-w", envvar="WEB_CONCURRENCY", min=1, help="Процесів uvicorn."),
+    ] = 1,
+    index_path: Annotated[
+        Path | None,
+        typer.Option("--index", "-i", help="Файл індексу (інакше — змінна INDEX_PATH)."),
+    ] = None,
+) -> None:
+    """Веб-пошук: HTTP API і сторінка з полем запиту (uvicorn + FastAPI)."""
+    import uvicorn  # важкий імпорт — лише для цієї команди
+
+    from findex.web.logs import log_config
+    from findex.web.settings import Settings
+
+    with expected_errors():
+        if index_path is not None:
+            # через оточення: воркер-процеси uvicorn успадкують його і прочитають у Settings
+            os.environ["INDEX_PATH"] = str(index_path)
+        try:
+            settings = Settings()
+        except ValueError as e:
+            raise CliError(f"bad environment: {e}") from e
+        if not settings.index_path.is_file():
+            raise CliError(
+                f"index file not found: {settings.index_path} (create it: findex index CORPUS)"
+            )
+    err.print(
+        f"findex serve: http://{host}:{port} · workers {workers} · index {settings.index_path}",
+        highlight=False,
+        soft_wrap=True,
+    )
+    uvicorn.run(
+        "findex.web.app:create_app",
+        factory=True,
+        host=host,
+        port=port,
+        workers=workers,
+        log_config=log_config(settings.log_level),
+        # Render/Fly стоять за проксі: адреса клієнта — в X-Forwarded-For
+        proxy_headers=True,
+        forwarded_allow_ips="*",
+        server_header=False,
+        timeout_graceful_shutdown=10,
+    )

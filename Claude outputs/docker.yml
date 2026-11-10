@@ -1,0 +1,32 @@
+name: Docker
+
+on:
+  push:
+    branches: [main]
+    paths: ["Dockerfile", ".dockerignore", "pyproject.toml", "uv.lock", "src/**"]
+  workflow_dispatch:
+
+jobs:
+  image:
+    name: build · run · /health
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build (2 stages, uv.lock, corpus + index inside)
+        run: docker build -t findex:ci .
+
+      - name: Run as non-root and wait for /health
+        run: |
+          docker run -d --name findex -p 8000:8000 findex:ci
+          for i in $(seq 1 60); do
+            curl -fsS localhost:8000/health && break
+            sleep 1
+          done
+          test "$(docker exec findex id -u)" != "0"
+          curl -fsS "localhost:8000/search?q=white+whale&k=3"
+          curl -fsS -o /dev/null localhost:8000/
+
+      - name: Container logs
+        if: always()
+        run: docker logs findex

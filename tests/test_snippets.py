@@ -1,4 +1,10 @@
-from findex.snippets import make_snippet
+from bisect import bisect_left, bisect_right
+
+from hypothesis import given
+from hypothesis import strategies as st
+
+from findex.snippets import best_window, find_hits, make_snippet
+from findex.tokenize import WORD, normalize
 
 FILLER = "lorem ipsum dolor sit amet " * 20  # ~540 символів «нічого»
 
@@ -45,3 +51,49 @@ def test_term_at_window_edge_is_not_cut():
     text = FILLER + "whale" + " " * 74 + "captain " + FILLER
     s = make_snippet(text, ["whale", "captain"], width=80)
     assert "**whale**" in s and "**captain**" in s
+
+
+# --- лаба 7: швидкий пошук входжень і рання зупинка не змінюють результату ----
+
+VOCAB = ["whale", "Whale", "WHALE", "ship", "sea", "don't", "well-known", "known", "the", "a"]
+SEPS = [" ", " ", "\n", ", ", "-", "'"]
+texts = st.lists(st.tuples(st.sampled_from(VOCAB), st.sampled_from(SEPS)), max_size=80).map(
+    lambda xs: "".join(w + s for w, s in xs)
+)
+queries = st.lists(
+    st.sampled_from(["whale", "ship", "sea", "known", "don't", "the"]), min_size=1, max_size=3
+).map(set)
+
+
+def full_scan(text: str, wanted: set[str]) -> list[tuple[int, int, str]]:
+    # як було в лабі 3: токенізуємо весь текст
+    words = ((m.start(), m.end(), normalize(m.group())) for m in WORD.finditer(text))
+    return [h for h in words if h[2] in wanted]
+
+
+def reference_best(text: str, wanted: set[str], width: int) -> int | None:
+    # вибір вікна з лаби 3: перебір усіх входжень, без ранньої зупинки
+    hits = full_scan(text, wanted)
+    if not hits:
+        return None
+    starts = [s for s, _, _ in hits]
+    ends = [e for _, e, _ in hits]
+
+    def distinct(i: int) -> int:
+        lo = bisect_left(starts, hits[i][0] - width)
+        hi = bisect_right(ends, hits[i][1] + width)
+        return len({w for _, _, w in hits[lo:hi]})
+
+    return hits[max(range(len(hits)), key=lambda i: (distinct(i), -i))][0]
+
+
+@given(texts, queries)
+def test_find_hits_equals_full_tokenization(text: str, wanted: set[str]):
+    assert find_hits(text, wanted) == full_scan(text, wanted)
+
+
+@given(texts, queries, st.sampled_from([5, 20, 80]))
+def test_early_stop_picks_same_window(text: str, wanted: set[str], width: int):
+    hits, best = best_window(text, wanted, width)
+    got = hits[best][0] if best is not None else None
+    assert got == reference_best(text, wanted, width)

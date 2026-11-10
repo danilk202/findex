@@ -1,22 +1,28 @@
 [project]
 name = "findex"
-version = "0.6.0"
-description = "Навчальний пошуковик: асинхронний краулер, інвертований індекс, BM25, мова запитів і CLI"
+version = "0.7.0"
+description = "Навчальний пошуковик: краулер, інвертований індекс, BM25, мова запитів, CLI і веб-пошук на FastAPI"
 readme = "README.md"
 authors = [
     { name = "Danil Kovtun", email = "danilcreativniy@gmail.com" }
 ]
 requires-python = ">=3.13"
-keywords = ["search", "inverted-index", "bm25", "information-retrieval"]
+keywords = ["search", "inverted-index", "bm25", "information-retrieval", "fastapi"]
 classifiers = [
     "Programming Language :: Python :: 3.13",
     "Environment :: Console",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
     "Topic :: Text Processing :: Indexing",
 ]
 dependencies = [
+    "fastapi>=0.162.4",
     "httpx>=0.28.1",
+    "jinja2>=3.1.6",
+    "pydantic-settings>=2.16.2",
     "rich>=15.0.0",
     "typer>=0.27.3",
+    "uvicorn>=0.54.0",
 ]
 
 [project.scripts]
@@ -35,6 +41,7 @@ bench = [
     "psutil>=7.2.2",
 ]
 dev = [
+    "httpx2>=2.16.0",
     "hypothesis>=6.170.14",
     "pyright>=1.1.414",
     "pytest>=9.1.1",
@@ -70,6 +77,8 @@ omit = [
     "*/findex/mirror.py",
     "*/findex/crawlbench.py",
     "*/findex/looplag.py",
+    # лаба 7: драйвер замірів def/async і oha — запускається вручну, результати в README
+    "*/findex/webbench.py",
 ]
 
 [tool.coverage.report]
