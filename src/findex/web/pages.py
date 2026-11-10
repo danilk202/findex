@@ -39,7 +39,8 @@ def _validation_message(e: ValidationError) -> str:
     return f"{'.'.join(str(x) for x in err['loc'])}: {err['msg']}"
 
 
-@router.get("/", response_class=HTMLResponse)
+# HEAD теж: Render і монітори аптайму перевіряють головну саме ним
+@router.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse)
 def home(request: Request, service: MaybeService) -> HTMLResponse:
     raw = {k: v for k, v in request.query_params.items() if k in SearchParams.model_fields}
     ctx: dict[str, Any] = {

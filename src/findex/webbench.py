@@ -304,7 +304,7 @@ def main() -> None:
     b.add_argument("-n", type=int, default=20, help="одночасних запитів")
     b.add_argument("--rounds", type=int, default=5)
     ld = sub.choices["load"]
-    ld.add_argument("--url", help="адреса розгорнутого сервісу, напр. https://findex.onrender.com")
+    ld.add_argument("--url", help="адреса розгорнутого сервісу (https://...onrender.com)")
     ld.add_argument("--skip-local", action="store_true", help="лише --url")
     ld.add_argument("--duration", default="20s")
     ld.add_argument("-c", type=int, default=20, help="одночасних з'єднань oha")

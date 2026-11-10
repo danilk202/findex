@@ -241,6 +241,7 @@ def test_home_page(client: TestClient):
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/html")
     assert "Пошук по 25 класичних книжках" in r.text
     assert "/static/htmx.min.js" in r.text
+    assert client.head("/").status_code == 200  # не 405
 
 
 def test_results_page_highlights_and_escapes(client: TestClient):
