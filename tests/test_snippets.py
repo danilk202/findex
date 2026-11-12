@@ -97,3 +97,21 @@ def test_early_stop_picks_same_window(text: str, wanted: set[str], width: int):
     hits, best = best_window(text, wanted, width)
     got = hits[best][0] if best is not None else None
     assert got == reference_best(text, wanted, width)
+
+
+# --- лаба 8: lower() + окремий швидкий пошук на кожен терм ----------------------
+
+
+def test_slow_path_when_lower_changes_length():
+    # «İ».lower() — два символи: позиції в нижньому регістрі зсунулись би, тож повільний шлях
+    text = "İstanbul whale. The WHALE's tail, a whale-ship and one more whale"
+    wanted = {"whale", "ship"}
+    assert find_hits(text, wanted) == full_scan(text, wanted)
+    assert [text[s:e] for s, e, _ in find_hits(text, wanted)] == ["whale", "whale"]
+
+
+def test_token_boundaries():
+    text = "awhale whale_x x-whale whale's whale' 'whale whale-"
+    hits = find_hits(text, {"whale"})
+    assert hits == full_scan(text, {"whale"})
+    assert [s for s, _, _ in hits] == [text.index("whale' "), text.index("'whale") + 1, 45]

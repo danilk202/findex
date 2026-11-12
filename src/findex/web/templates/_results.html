@@ -5,7 +5,7 @@
     {% set top = data.hits[0].score if data.hits[0].score > 0 else 1 %}
     <p class="meta">
       {{ data.total }} {% if data.total % 10 == 1 and data.total % 100 != 11 %}документ{% elif data.total % 10 in [2,3,4] and data.total % 100 not in [12,13,14] %}документи{% else %}документів{% endif %}
-      · <code>{{ data.tree }}</code> · {{ data.scorer | upper }} · {{ '%.1f' | format(data.took_ms) }} мс
+      · <code>{{ data.tree }}</code> · {% if data.mode == "semantic" %}косинус{% elif data.mode == "hybrid" %}RRF ({{ data.scorer | upper }} + зміст){% else %}{{ data.scorer | upper }}{% endif %} · {{ '%.1f' | format(data.took_ms) }} мс
     </p>
     <ol class="hits">
       {% for h in data.hits %}
@@ -13,7 +13,7 @@
         <div class="hit-head">
           <span class="rank">{{ h.rank }}</span>
           <a class="title" href="/view/{{ h.doc_id }}?q={{ data.query | urlencode }}#hit">{{ h.title }}</a>
-          <span class="score" title="бал {{ data.scorer | upper }}">
+          <span class="score" title="{% if data.mode == 'semantic' %}косинус найкращого фрагмента{% elif data.mode == 'hybrid' %}бал RRF{% else %}бал {{ data.scorer | upper }}{% endif %}">
             <span class="bar"><span style="width: {{ (100 * h.score / top) | round(0) | int }}%"></span></span>
             {{ '%.3f' | format(h.score) }}
           </span>
@@ -47,6 +47,7 @@
     <p class="label">Спробуйте</p>
     <div class="chips">
       {% for ex in examples %}<a class="chip" href="/?q={{ ex | urlencode }}">{{ ex }}</a>{% endfor %}
+      {% if semantic %}{% for ex in semantic_examples %}<a class="chip chip-semantic" href="/?q={{ ex | urlencode }}&amp;mode=semantic" title="пошук за змістом">≈ {{ ex }}</a>{% endfor %}{% endif %}
     </div>
     <dl class="syntax">
       <div><dt><code>whale ship</code></dt><dd>обидва слова (AND можна не писати)</dd></div>

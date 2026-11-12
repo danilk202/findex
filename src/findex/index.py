@@ -1,4 +1,3 @@
-import heapq
 import logging
 from collections import Counter, defaultdict
 from collections.abc import Generator, Iterable, Iterator, Mapping
@@ -6,9 +5,12 @@ from contextlib import contextmanager
 from functools import cached_property
 from pathlib import Path
 
+import numpy as np
+
+from findex.arrays import EMPTY, IntArray, PostingArrays
 from findex.corpus import Document
 from findex.models import DocMeta, Posting
-from findex.storage import Format, Postings, load, save
+from findex.storage import Format, Postings, load_arrays, save, save_arrays
 from findex.timing import timed
 from findex.tokenize import tokenize
 
@@ -46,10 +48,14 @@ class Index(Mapping[str, list[Posting]]):
 
     Від Mapping достатньо реалізувати __getitem__, __len__, __iter__ —
     keys/items/values/get/__contains__/__eq__ abc.Mapping дає сам.
+    Лаба 8: усередині — масиви NumPy (PostingArrays), а список Posting
+    збирається з них лише на вимогу.
     """
 
-    def __init__(self, postings: Postings, metas: list[DocMeta]) -> None:
-        self._postings = postings
+    def __init__(self, postings: Postings | PostingArrays, metas: list[DocMeta]) -> None:
+        if not isinstance(postings, PostingArrays):
+            postings = PostingArrays.from_postings(postings, [m.length for m in metas])
+        self._arrays = postings
         self._metas = metas
         self.closed = False
 
@@ -62,28 +68,33 @@ class Index(Mapping[str, list[Posting]]):
     @classmethod
     @timed
     def load(cls, path: str | Path) -> "Index":
-        return cls(*load(Path(path)))
+        return cls(*load_arrays(Path(path)))
 
     def save(self, path: str | Path, fmt: Format = "pickle") -> None:
-        save(self._postings, self._metas, Path(path), fmt)
+        match fmt:
+            case "pickle":
+                save_arrays(self._arrays, self._metas, Path(path))
+            case "json":
+                save(self._arrays.to_postings(), self._metas, Path(path), "json")
 
     # --- протокол Mapping ----------------------------------------------
     def __getitem__(self, term: str) -> list[Posting]:
         self._check_open()
-        return self._postings[term]  # KeyError, як у dict
+        if term not in self._arrays:
+            raise KeyError(term)  # як у dict
+        return self._arrays.postings(term)
 
     def __len__(self) -> int:
         self._check_open()
-        return len(self._postings)
+        return len(self._arrays)
 
     def __iter__(self) -> Iterator[str]:
         self._check_open()
-        return iter(self._postings)
+        return iter(self._arrays)
 
     def __contains__(self, term: object) -> bool:
-        # Mapping уміє це сам через try/except KeyError, але так швидше
         self._check_open()
-        return term in self._postings
+        return term in self._arrays
 
     def __repr__(self) -> str:
         if self.closed:
@@ -94,6 +105,11 @@ class Index(Mapping[str, list[Posting]]):
         )
 
     # --- статистики корпусу --------------------------------------------
+    @property
+    def arrays(self) -> PostingArrays:
+        self._check_open()
+        return self._arrays
+
     @property
     def metas(self) -> list[DocMeta]:
         return self._metas
@@ -114,14 +130,13 @@ class Index(Mapping[str, list[Posting]]):
         # рахується один раз, далі береться з self.__dict__
         return sum(m.length for m in self._metas) / self.num_docs if self._metas else 0.0
 
-    @cached_property
+    @property
     def has_positions(self) -> bool:
-        first = next(iter(self._postings.values()), None)
-        return bool(first) and first[0].positions is not None
+        return self._arrays.has_positions and len(self._arrays.doc_ids) > 0
 
     @property
     def num_postings(self) -> int:
-        return sum(len(plist) for plist in self._postings.values())
+        return len(self._arrays.doc_ids)
 
     @property
     def num_tokens(self) -> int:
@@ -129,22 +144,25 @@ class Index(Mapping[str, list[Posting]]):
 
     def top_terms(self, n: int) -> list[tuple[str, int, int]]:
         """n найчастіших термів: (терм, df, сумарний tf по корпусу)."""
-        rows = (
-            (term, len(plist), sum(p.tf for p in plist)) for term, plist in self._postings.items()
-        )
-        return heapq.nlargest(n, rows, key=lambda r: (r[2], r[1]))
+        a = self._arrays
+        df, cf = a.document_frequencies(), a.collection_frequencies()
+        # за cf, потім df — обидва за спаданням; при рівності — порядок термів у словнику
+        order = np.lexsort((np.arange(len(df)), -df, -cf))[:n]
+        return [(a.terms[i], int(df[i]), int(cf[i])) for i in order.tolist()]
 
     def df(self, term: str) -> int:
         """Document frequency: у скількох документах є термін."""
-        return len(self.get(term, ()))
+        return self._arrays.df(term)
+
+    def doc_ids(self, term: str) -> IntArray:
+        return self._arrays.doc_ids_of(term)
 
     # --- ресурси --------------------------------------------------------
     def close(self) -> None:
-        self._postings = {}
+        self._arrays = PostingArrays((), np.zeros(1, np.int64), EMPTY, EMPTY, EMPTY)
         self._metas = []
-        # скидаємо закешовані значення cached_property
+        # скидаємо закешоване значення cached_property
         self.__dict__.pop("_avg_doc_length", None)
-        self.__dict__.pop("has_positions", None)
         self.closed = True
 
     def _check_open(self) -> None:

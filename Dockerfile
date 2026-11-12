@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
-# Два етапи: у builder — uv, залежності строго з uv.lock, корпус і index.bin;
-# у фінальному образі — лише готовий .venv, тексти й індекс, процес не від root.
+# Два етапи: у builder — uv, залежності строго з uv.lock, корпус, index.bin і модель
+# all-MiniLM-L6-v2; у фінальному образі — лише готовий .venv, тексти, індекс, модель
+# і матриця ембедингів з репозиторію (emb/), процес не від root.
 
 # ---------- 1. збірка ----------
 FROM python:3.13-slim AS builder
@@ -26,6 +27,14 @@ ARG GUTENBERG_MIRROR=https://www.gutenberg.org
 RUN /app/.venv/bin/python -m findex.gutenberg data --mirror "$GUTENBERG_MIRROR" \
  && /app/.venv/bin/findex index data -o index.bin
 
+# лаба 8: модель (ревізія і sha256 зафіксовані в findex.semantic) і матриця ембедингів.
+# Матриця вже лежить у emb/ — рахувати її тут довго. Але якщо Gutenberg віддав інший текст
+# книжки, ніж той, з якого вона збиралась (відбиток у emb/meta.json), — перерахувати.
+ENV FINDEX_MODEL_DIR=/app/model
+RUN /app/.venv/bin/python -c "from findex.semantic import ensure_model; ensure_model()"
+COPY emb ./emb
+RUN /app/.venv/bin/findex embed index.bin -o emb --skip-if-fresh
+
 # ---------- 2. запуск ----------
 FROM python:3.13-slim
 
@@ -36,6 +45,8 @@ COPY --from=builder /app/.venv /app/.venv
 # шляхи в індексі відносні (data/moby.txt) — тому той самий WORKDIR /app
 COPY --from=builder /app/data /app/data
 COPY --from=builder /app/index.bin /app/index.bin
+COPY --from=builder /app/model /app/model
+COPY --from=builder /app/emb /app/emb
 
 # Конфіг — лише змінні оточення; платформа може перевизначити будь-яку (Render ставить PORT)
 ENV PATH="/app/.venv/bin:$PATH" \
@@ -44,6 +55,9 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PORT=8000 \
     WEB_CONCURRENCY=1 \
     INDEX_PATH=/app/index.bin \
+    EMB_PATH=/app/emb \
+    FINDEX_MODEL_DIR=/app/model \
+    SEMANTIC_THREADS=1 \
     LOG_LEVEL=INFO
 
 USER findex

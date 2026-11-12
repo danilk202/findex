@@ -9,11 +9,15 @@ type LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR"]
 
 
 class Settings(BaseSettings):
-    # Конфіг лише з оточення: INDEX_PATH, LOG_LEVEL, SNIPPET_WIDTH, TEXT_CACHE.
+    # Конфіг лише з оточення: INDEX_PATH, EMB_PATH, LOG_LEVEL, SNIPPET_WIDTH, TEXT_CACHE.
     # Регістр імен не важливий; невідомі змінні оточення ігноруються.
     model_config = SettingsConfigDict(frozen=True, extra="ignore")
 
     index_path: Path = Path("index.bin")
+    # лаба 8: матриця ембедингів від `findex embed`; немає каталогу — семантичний режим вимкнено
+    emb_path: Path = Path("emb")
+    # потоків onnxruntime на кодування запиту: на частці ядра (Render free) більше — лише гірше
+    semantic_threads: int = Field(default=1, ge=1, le=64)
     log_level: LogLevel = "INFO"
     snippet_width: int = Field(default=80, ge=10, le=400)
     text_cache: int = Field(

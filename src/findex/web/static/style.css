@@ -108,6 +108,7 @@ main { flex: 1; max-width: 880px; width: 100%; margin: 0 auto; padding: 0 16px 4
 .intro .label { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .08em; margin: 8px 0; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; }
 .chip { padding: 6px 14px; border-radius: 999px; background: var(--accent-soft); font-family: var(--mono); font-size: 14px; }
+.chip-semantic { background: transparent; border: 1px dashed var(--accent); }
 .syntax { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin: 0; }
 .syntax div { padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 .syntax dt { margin-bottom: 4px; }

@@ -4,12 +4,17 @@
 <section class="hero">
   <div id="hero-copy">{% if not q %}
     <h1>Пошук по 25 класичних книжках</h1>
-    <p class="lead">Від «Мобі Діка» до «Війни і миру»: BM25, булеві оператори і пошук фраз.</p>
+    <p class="lead">Від «Мобі Діка» до «Війни і миру»: BM25, булеві оператори, фрази і пошук за змістом.</p>
   {% endif %}</div>
   <form class="search" action="/" method="get" role="search"
         hx-get="/" hx-target="#results" hx-push-url="true" hx-indicator="#results">
     <input type="search" name="q" value="{{ q }}" placeholder='whale OR ship "white whale"'
            aria-label="Запит" autocomplete="off" autofocus maxlength="500">
+    {% if semantic %}
+    <select name="mode" aria-label="Режим пошуку">
+      {% for m, label in modes.items() %}<option value="{{ m }}" {% if m == mode %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    {% endif %}
     <select name="scorer" aria-label="Формула рейтингу">
       {% for s in scorers %}<option value="{{ s }}" {% if s == scorer %}selected{% endif %}>{{ s | upper }}</option>{% endfor %}
     </select>

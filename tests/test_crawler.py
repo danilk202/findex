@@ -283,6 +283,10 @@ def test_no_blocking_in_debug_mode(caplog: pytest.LogCaptureFixture):
         config = CrawlConfig(concurrency=5, per_host=5, **FAST)
         return [p async for p in crawl(["http://a.test/0"], config, transport=site.transport())]
 
+    # Прогрів без debug: одноразові витрати першого запиту (ліниві імпорти, компіляція
+    # регулярок) — не блокування циклу. На Windows-раннері під coverage лише перша
+    # сторінка давала 0,110 с при 0,013 с у решти й валила поріг 0,1 с.
+    collect(["http://a.test/0"], CrawlConfig(max_pages=2, **FAST), site)
     with caplog.at_level(logging.WARNING, logger="asyncio"):
         pages = asyncio.run(go(), debug=True)
     assert len(pages) == 20

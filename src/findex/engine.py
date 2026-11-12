@@ -1,10 +1,10 @@
 import logging
 from functools import lru_cache
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from findex.index import Index
 from findex.query import Node, parse
-from findex.ranking import SearchResult, search
+from findex.ranking import SearchResult, search, search_np
 from findex.scoring import Scorer
 from findex.timing import timed
 
@@ -35,11 +35,18 @@ def make_matcher(index: Index, maxsize: int = 256) -> Matcher:
     return match
 
 
+type Backend = Literal["numpy", "python"]
+
+
 class Searcher:
-    def __init__(self, index: Index, scorer: Scorer, cache_size: int = 256):
+    def __init__(
+        self, index: Index, scorer: Scorer, cache_size: int = 256, backend: Backend = "numpy"
+    ):
         self.index = index
         self.scorer = scorer
         self.match = make_matcher(index, cache_size)
+        # python — скорер з лаби 3 (цикл по Posting), numpy — лаба 8; результат однаковий
+        self.rank = search_np if backend == "numpy" else search
 
     @timed
     def search(self, query: str, k: int = 10) -> list[SearchResult]:
@@ -50,4 +57,4 @@ class Searcher:
         if self.match.cache_info().hits > hits_before:
             log.info("cache hit:  %s", tree)
         log.debug("%d candidate documents", len(ids))
-        return search(self.index, tree.terms(), self.scorer, k, candidates=ids)
+        return self.rank(self.index, tree.terms(), self.scorer, k, candidates=ids)

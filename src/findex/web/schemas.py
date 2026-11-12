@@ -6,7 +6,7 @@ from typing import Literal, Self
 from pydantic import BaseModel, ConfigDict, Field
 
 from findex.scoring import ScorerName
-from findex.web.service import Hit, IndexStats, Segments
+from findex.web.service import Hit, IndexStats, Mode, Segments
 from findex.web.service import SearchPage as SearchPageData
 
 
@@ -18,6 +18,11 @@ class SearchParams(BaseModel):
     k: int = Field(default=10, ge=1, le=50, description="Результатів на сторінку")
     scorer: ScorerName = "bm25"
     page: int = Field(default=1, ge=1, le=100)
+    mode: Mode = Field(
+        default="lexical",
+        description="lexical — BM25/TF-IDF за словами; semantic — за змістом (ембединги); "
+        "hybrid — обидва рейтинги, злиті через Reciprocal Rank Fusion",
+    )
 
 
 class DocParams(BaseModel):
@@ -67,6 +72,7 @@ class SearchOut(BaseModel):
     query: str
     tree: str = Field(description="Як запит розібрано")
     scorer: ScorerName
+    mode: Mode
     page: int
     k: int
     total: int = Field(description="Скільки документів підходить під запит")
@@ -80,6 +86,7 @@ class SearchOut(BaseModel):
             query=data.query,
             tree=data.tree,
             scorer=data.scorer,
+            mode=data.mode,
             page=data.page,
             k=data.k,
             total=data.total,

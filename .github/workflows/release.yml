@@ -31,4 +31,4 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" dist/* \
             --title "findex $GITHUB_REF_NAME" \
-            --notes "Лабораторна 4: пакет і CLI (typer + rich), pyright strict, pytest + Hypothesis, CI. Встановлення: uv tool install ./findex-*.whl"
+            --notes "findex $GITHUB_REF_NAME — див. README. Встановлення: uv tool install ./findex-*.whl"

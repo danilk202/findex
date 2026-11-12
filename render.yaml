@@ -12,6 +12,8 @@ services:
     envVars:
       - key: INDEX_PATH
         value: /app/index.bin
+      - key: EMB_PATH
+        value: /app/emb
       - key: LOG_LEVEL
         value: INFO
       - key: WEB_CONCURRENCY

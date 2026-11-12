@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Path, Query
 from fastapi.responses import JSONResponse
 
 from findex.query import NeedsPositionsError, QuerySyntaxError
+from findex.semantic import SemanticUnavailableError
 from findex.web.deps import Holder, MaybeService, Service
 from findex.web.schemas import (
     DocOut,
@@ -36,9 +37,11 @@ def bad_query(e: ValueError) -> NoReturn:
 )
 def search(params: Annotated[SearchParams, Query()], service: Service) -> SearchOut:
     try:
-        data = service.search(params.q, params.scorer, params.k, params.page)
+        data = service.search(params.q, params.scorer, params.k, params.page, params.mode)
     except (QuerySyntaxError, NeedsPositionsError) as e:
         bad_query(e)
+    except SemanticUnavailableError as e:
+        raise HTTPException(503, str(e)) from e
     return SearchOut.from_page(data)
 
 

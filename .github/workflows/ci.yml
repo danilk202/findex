@@ -33,3 +33,57 @@ jobs:
 
       - name: Tests + coverage
         run: uv run pytest --cov --cov-report=term
+
+  bench:
+    # Лаба 8: pytest-benchmark на build_index, load і search. Кожен прогін на main
+    # зберігається в кеш; наступний порівнюється з ним і падає, якщо мінімальний час
+    # будь-якого заміру виріс більш ніж на 35 % (мінімум найменше залежить від шуму раннера).
+    name: benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install
+        run: uv sync --locked --all-groups
+
+      - name: Previous results from main
+        uses: actions/cache/restore@v4
+        with:
+          path: .benchmarks
+          key: bench-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: bench-${{ runner.os }}-
+
+      - name: Benchmarks (compare with the previous run on main)
+        run: |
+          compare=""
+          if ls .benchmarks/*/*.json >/dev/null 2>&1; then
+            compare="--benchmark-compare --benchmark-compare-fail=min:35%"
+          fi
+          uv run pytest tests/test_bench.py --benchmark-enable --benchmark-only \
+            --benchmark-autosave --benchmark-columns=min,median,mean,rounds \
+            --benchmark-json=bench.json $compare | tee bench.txt
+
+      - name: Summary
+        if: always()
+        run: |
+          echo '### pytest-benchmark' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          sed -n '/benchmark/,$p' bench.txt >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep results for the next run
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: .benchmarks
+          key: bench-${{ runner.os }}-${{ github.run_id }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmarks
+          path: bench.json

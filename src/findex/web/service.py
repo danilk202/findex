@@ -8,22 +8,33 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from functools import cached_property, lru_cache
 from pathlib import Path
-from typing import Final
+from typing import Final, Literal
 
 from findex.corpus import read_text
 from findex.engine import Searcher
 from findex.index import Index
 from findex.models import DocMeta
 from findex.query import parse
-from findex.ranking import search
 from findex.scoring import SCORER_NAMES, ScorerName, make_scorer
+from findex.semantic import (
+    STOPWORDS,
+    SemanticSearch,
+    SemanticUnavailableError,
+    query_text,
+    rrf,
+)
 from findex.snippets import best_window, find_hits, make_snippet
+from findex.tokenize import tokenize
 
 log = logging.getLogger(__name__)
 
 # Маркери підсвітки, як у CLI: символів \x02/\x03 у книжковому тексті не буває.
 MARKS: Final = ("\x02", "\x03")
 CHUNK: Final = 20_000  # символів на одну сторінку перегляду документа
+HYBRID_DEPTH: Final = 100  # скільки місць кожного рейтингу йде в RRF
+
+type Mode = Literal["lexical", "semantic", "hybrid"]
+MODES: Final[tuple[Mode, ...]] = ("lexical", "semantic", "hybrid")
 
 # Шапка книжки Gutenberg: «Title: Moby Dick; Or, The Whale» / «Author: Herman Melville»
 _HEADER = re.compile(r"^(Title|Author):[ \t]*(.+?)[ \t]*$", re.MULTILINE)
@@ -69,6 +80,7 @@ class SearchPage:
     total: int  # скільки документів пройшли Boolean-фільтр
     hits: tuple[Hit, ...]
     took_ms: float
+    mode: Mode = "lexical"
 
     @property
     def pages(self) -> int:
@@ -107,8 +119,10 @@ class SearchService:
         *,
         snippet_width: int = 80,
         text_cache: int = 64,
+        semantic: SemanticSearch | None = None,
     ) -> None:
         self.index = index
+        self.semantic = semantic
         self.snippet_width = snippet_width
         # Searcher на кожен скорер: у кожного свій lru_cache «дерево -> doc_id»
         self._searchers = {name: Searcher(index, make_scorer(name)) for name in SCORER_NAMES}
@@ -126,33 +140,75 @@ class SearchService:
         return self.index.num_docs
 
     def search(
-        self, query: str, scorer: ScorerName = "bm25", k: int = 10, page: int = 1
+        self,
+        query: str,
+        scorer: ScorerName = "bm25",
+        k: int = 10,
+        page: int = 1,
+        mode: Mode = "lexical",
     ) -> SearchPage:
-        # QuerySyntaxError / NeedsPositionsError летять нагору — їх перекладає маршрут
+        # QuerySyntaxError / NeedsPositionsError / SemanticUnavailableError летять нагору —
+        # їх перекладає маршрут
         t0 = time.perf_counter()
-        searcher = self._searchers[scorer]
-        tree = parse(query)
-        matched = searcher.match(tree)
-        top = search(self.index, tree.terms(), searcher.scorer, k * page, candidates=matched)
-        terms = list(tree.terms())
+        depth = k * page
+        fragments: dict[int, tuple[int, int]] = {}
+        if mode == "lexical":
+            searcher = self._searchers[scorer]
+            tree = parse(query)
+            matched = searcher.match(tree)
+            ranked = [
+                (r.doc_id, r.score)
+                for r in searcher.rank(self.index, tree.terms(), searcher.scorer, depth, matched)
+            ]
+            terms, shown, total = list(tree.terms()), str(tree), len(matched)
+        else:
+            semantic = self._need_semantic()
+            hits = semantic.search(query, depth if mode == "semantic" else HYBRID_DEPTH)
+            fragments = {h.doc_id: (h.start, h.end) for h in hits}
+            terms = [t for t in tokenize(query_text(query)) if t not in STOPWORDS]
+            if mode == "semantic":
+                ranked = [(h.doc_id, h.score) for h in hits]
+                shown, total = f"≈ {query_text(query)}", len(semantic.index.present)
+            else:
+                # гібрид: місця в рейтингу BM25 (з Boolean-фільтром) і в семантичному -> RRF
+                searcher = self._searchers[scorer]
+                tree = parse(query)
+                matched = searcher.match(tree)
+                lexical = searcher.rank(
+                    self.index, tree.terms(), searcher.scorer, HYBRID_DEPTH, matched
+                )
+                lex_ids = [r.doc_id for r in lexical]
+                ranked = rrf([lex_ids, [h.doc_id for h in hits]])
+                terms, shown, total = list(tree.terms()), f"{tree} + ≈ semantic", len(ranked)
+                # документ знайдено за словами — сніпет зі словами; інакше — фрагмент
+                fragments = {d: span for d, span in fragments.items() if d not in matched}
         start = (page - 1) * k
-        hits = tuple(
+        out = tuple(
             Hit(
                 rank=start + i,
-                doc_id=r.doc_id,
-                title=self.heading(r.doc_id)[0],
-                author=self.heading(r.doc_id)[1],
-                score=r.score,
-                tokens=self.index.metas[r.doc_id].length,
-                snippet=self.snippet(r.doc_id, terms),
+                doc_id=doc_id,
+                title=self.heading(doc_id)[0],
+                author=self.heading(doc_id)[1],
+                score=score,
+                tokens=self.index.metas[doc_id].length,
+                snippet=self.snippet(doc_id, terms, fragments.get(doc_id)),
             )
-            for i, r in enumerate(top[start:], 1)
+            for i, (doc_id, score) in enumerate(ranked[start:depth], 1)
         )
         took = (time.perf_counter() - t0) * 1000
         log.info(
-            "search %r (%s, page %d): %d hits in %.1f ms", query, scorer, page, len(matched), took
+            "search %r (%s/%s, page %d): %d hits in %.1f ms", query, mode, scorer, page, total, took
         )
-        return SearchPage(query, str(tree), scorer, page, k, len(matched), hits, took)
+        return SearchPage(query, shown, scorer, page, k, total, out, took, mode)
+
+    @property
+    def semantic_available(self) -> bool:
+        return self.semantic is not None
+
+    def _need_semantic(self) -> SemanticSearch:
+        if self.semantic is None:
+            raise SemanticUnavailableError("semantic search is not available on this server")
+        return self.semantic
 
     def heading(self, doc_id: int) -> tuple[str, str | None]:
         # Справжня назва й автор із шапки Gutenberg; інакше — назва з індексу (ім'я файлу).
@@ -163,11 +219,17 @@ class SearchService:
             cached = self._headings[doc_id] = (title, found.get("Author"))
         return cached
 
-    def snippet(self, doc_id: int, terms: list[str]) -> Segments:
+    def snippet(
+        self, doc_id: int, terms: list[str], fragment: tuple[int, int] | None = None
+    ) -> Segments:
         # Лише терми, що справді є в документі (видно з постінгів): тоді make_snippet
         # знаходить вікно з усіма ними і зупиняється рано, а не сканує всю книжку.
-        present = [t for t in terms if any(p.doc_id == doc_id for p in self.index.get(t, ()))]
         text = self.text_of(doc_id)
+        if fragment is not None:
+            # семантичний збіг: найкращий фрагмент, у ньому підсвічуються слова запиту, якщо є
+            s, e = fragment
+            return segments(make_snippet(text[s:e], terms, width=self.snippet_width, mark=MARKS))
+        present = [t for t in terms if self.index.arrays.has_doc(t, doc_id)]
         terms = present or terms
         return segments(make_snippet(text, terms, width=self.snippet_width, mark=MARKS))
 

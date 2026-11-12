@@ -24,15 +24,13 @@ from rich.table import Table
 from rich.text import Text
 
 from findex import __version__
-from findex.corpus import Document, corpus_files, is_jsonl, iter_documents
-from findex.crawlcmd import crawl_to_file
-from findex.crawler import CrawlConfig
+from findex.corpus import Document, corpus_files, is_jsonl, iter_documents, read_text
 from findex.engine import Searcher
-from findex.fetch import RetryPolicy
 from findex.index import Index, build_index, open_index
 from findex.parallel import ExecutorKind, WorkerError, build_parallel, cpu_count
 from findex.query import NeedsPositionsError, QuerySyntaxError, parse
 from findex.scoring import make_scorer
+from findex.semantic import SemanticUnavailableError
 from findex.snippets import doc_snippet
 from findex.storage import IndexFormatError
 
@@ -85,6 +83,8 @@ def expected_errors() -> Generator[None]:
         fail(f"bad query: {e}", EXIT_BAD_QUERY)
     except NeedsPositionsError as e:
         fail(f"{e} (rebuild: findex index CORPUS --positions)", EXIT_BAD_QUERY)
+    except SemanticUnavailableError as e:
+        fail(str(e))
     except WorkerError as e:
         # Не очікувана помилка, але й не баг CLI: показуємо стек саме воркера (__cause__).
         # Для процесу в ньому є і текст стека з дочірнього процесу (_RemoteTraceback).
@@ -267,6 +267,12 @@ def crawl(
     live: Annotated[bool, typer.Option("--live/--no-live", help="Живий екран rich.")] = True,
 ) -> None:
     """Асинхронний краулер: пише сторінки в JSONL у міру надходження, лог — у crawl.log."""
+    # httpx і краулер — лише для цієї команди: профіль лаби 8 показав, що їхній імпорт
+    # був п'ятою частиною часу `findex search`
+    from findex.crawlcmd import crawl_to_file
+    from findex.crawler import CrawlConfig
+    from findex.fetch import RetryPolicy
+
     with expected_errors():
         if output.is_dir() or not output.parent.is_dir():
             raise CliError(f"bad --out: {output}")
@@ -316,6 +322,7 @@ class SearchJSON(TypedDict):
     query: str
     tree: str
     scorer: str
+    mode: str
     results: list[ResultJSON]
 
 
@@ -360,7 +367,37 @@ def run_search(
                 snippet=snippet,
             )
         )
-    return SearchJSON(query=query, tree=str(tree), scorer=scorer, results=rows)
+    return SearchJSON(query=query, tree=str(tree), scorer=scorer, mode="lexical", results=rows)
+
+
+def run_semantic(
+    index: Index,
+    query: str,
+    scorer: Literal["bm25", "tfidf"],
+    limit: int,
+    mode: Literal["semantic", "hybrid"],
+    emb: Path,
+    width: int,
+) -> SearchJSON:
+    # семантичний і гібридний режими — через той самий SearchService, що й на сервері
+    from findex.semantic import SemanticSearch
+    from findex.web.service import SearchService
+
+    service = SearchService(index, snippet_width=width, semantic=SemanticSearch.open(emb, index))
+    page = service.search(query, scorer, limit, 1, mode)
+    rows = [
+        ResultJSON(
+            rank=h.rank,
+            score=round(h.score, 4),
+            doc_id=h.doc_id,
+            title=index.metas[h.doc_id].title,
+            path=index.metas[h.doc_id].path,
+            tokens=h.tokens,
+            snippet="".join(f"{_HL[0]}{t}{_HL[1]}" if hit else t for t, hit in h.snippet),
+        )
+        for h in page.hits
+    ]
+    return SearchJSON(query=query, tree=page.tree, scorer=scorer, mode=mode, results=rows)
 
 
 @app.command()
@@ -376,13 +413,21 @@ def search(
     as_json: Annotated[bool, typer.Option("--json", help="JSON у stdout замість таблиці.")] = False,
     snippets: Annotated[bool, typer.Option("--snippets/--no-snippets")] = True,
     width: Annotated[int, typer.Option(min=10, help="Півширина сніпета, символів.")] = 80,
+    mode: Annotated[
+        Literal["lexical", "semantic", "hybrid"],
+        typer.Option("--mode", "-m", help="За словами, за змістом (ембединги) чи обидва (RRF)."),
+    ] = "lexical",
+    emb: Annotated[Path, typer.Option(help="Каталог від findex embed.")] = Path("emb"),
 ) -> None:
     """Ранжований пошук: таблиця rich або --json."""
     with expected_errors():
         if not index_path.is_file():
             raise CliError(f"index file not found: {index_path} (create it: findex index CORPUS)")
         with open_index(index_path) as index:
-            data = run_search(index, query, scorer, limit, snippets, width)
+            if mode == "lexical":
+                data = run_search(index, query, scorer, limit, snippets, width)
+            else:
+                data = run_semantic(index, query, scorer, limit, mode, emb, width)
 
     if as_json:
         for row in data["results"]:
@@ -398,7 +443,7 @@ def search(
         return
     table = Table(
         title=f"{data['tree']}",
-        caption=f"{len(data['results'])} results · {scorer}",
+        caption=f"{len(data['results'])} results · {scorer if mode == 'lexical' else mode}",
         show_lines=snippets,
     )
     table.add_column("#", justify="right", style="dim")
@@ -418,6 +463,63 @@ def search(
             cells.append(_highlighted(row["snippet"]))
         table.add_row(*cells)
     out.print(table)
+
+
+# ------------------------------------------------------------------ embed
+
+
+@app.command()
+def embed(
+    index_path: Annotated[Path, typer.Argument(metavar="INDEX", help="Файл індексу.")],
+    output: Annotated[Path, typer.Option("--out", "-o", help="Каталог для .npy.")] = Path("emb"),
+    words: Annotated[int, typer.Option(min=10, max=190, help="Слів у фрагменті.")] = 150,
+    batch: Annotated[int, typer.Option(min=1, help="Фрагментів за один виклик моделі.")] = 16,
+    threads: Annotated[
+        int | None, typer.Option(min=1, help="Потоків onnxruntime (типово — усі ядра).")
+    ] = None,
+    skip_if_fresh: Annotated[
+        bool, typer.Option("--skip-if-fresh", help="Нічого не робити, якщо emb/ від цього корпусу.")
+    ] = False,
+) -> None:
+    """Ембединги фрагментів для семантичного пошуку (all-MiniLM-L6-v2) -> vectors.npy."""
+    from findex.semantic import MiniLM, build_embeddings, ensure_model, is_fresh
+
+    with expected_errors():
+        if not index_path.is_file():
+            raise CliError(f"index file not found: {index_path} (create it: findex index CORPUS)")
+        if output.exists() and not output.is_dir():
+            raise CliError(f"--out is not a directory: {output}")
+        with open_index(index_path) as index:
+            if skip_if_fresh and is_fresh(output, index):
+                out.print(f"{output} is up to date for this corpus", highlight=False)
+                return
+            embedder = MiniLM(ensure_model(), threads)
+            progress = Progress(
+                TextColumn("[bold]embedding"),
+                BarColumn(),
+                MofNCompleteColumn(),
+                TimeElapsedColumn(),
+                console=err,
+            )
+            with progress:
+                task = progress.add_task("embedding", total=None)
+                report = build_embeddings(
+                    index,
+                    lambda d: read_text(Path(index.metas[d].path)),
+                    embedder,
+                    output,
+                    words=words,
+                    batch=batch,
+                    on_batch=lambda done, total: progress.update(task, completed=done, total=total),
+                )
+            docs = index.num_docs
+    size = sum(f.stat().st_size for f in output.iterdir()) / 2**20
+    out.print(
+        f"embedded {report.fragments} fragments of {docs} documents -> {output} "
+        f"({size:.1f} MiB) in {report.seconds:.0f} s",
+        highlight=False,
+        soft_wrap=True,
+    )
 
 
 # ------------------------------------------------------------------ stats

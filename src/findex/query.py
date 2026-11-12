@@ -14,6 +14,8 @@ import re
 from collections.abc import Iterator
 from dataclasses import dataclass
 
+import numpy as np
+
 from findex.index import Index
 from findex.tokenize import tokenize
 
@@ -59,7 +61,7 @@ class Term(Node):
         return self.text
 
     def evaluate(self, index: Index) -> set[int]:
-        return {p.doc_id for p in index.get(self.text, ())}
+        return set(index.doc_ids(self.text).tolist())
 
     def terms(self) -> Iterator[str]:
         yield self.text
@@ -75,20 +77,21 @@ class Phrase(Node):
     def evaluate(self, index: Index) -> set[int]:
         if not index.has_positions:
             raise NeedsPositionsError("phrase search needs an index built with positions")
-        lists = [index.get(w, []) for w in self.words]
-        if not all(lists):
+        arr = index.arrays
+        docs: list[set[int]] = [set(arr.doc_ids_of(w).tolist()) for w in self.words]
+        if not all(docs):
             return set()
-        # позиції кожного слова в кожному документі: [{doc_id: {pos, ...}}, ...]
-        pos = [{p.doc_id: set(p.positions or ()) for p in plist} for plist in lists]
-        candidates = set(pos[0]).intersection(*pos[1:])
-        return {
-            doc
-            for doc in candidates
-            if any(
-                all(start + i in pos[i][doc] for i in range(1, len(self.words)))
-                for start in pos[0][doc]
-            )
-        }
+        found: set[int] = set()
+        for doc in docs[0].intersection(*docs[1:]):
+            # початки фрази: позиції першого слова, для яких слово i стоїть на start + i
+            starts = arr.positions_in(self.words[0], doc)
+            for i, w in enumerate(self.words[1:], 1):
+                starts = starts[np.isin(starts + i, arr.positions_in(w, doc))]
+                if not len(starts):
+                    break
+            if len(starts):
+                found.add(doc)
+        return found
 
     def terms(self) -> Iterator[str]:
         yield from self.words

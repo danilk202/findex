@@ -26,6 +26,13 @@ jobs:
           test "$(docker exec findex id -u)" != "0"
           curl -fsS "localhost:8000/search?q=white+whale&k=3"
           curl -fsS -o /dev/null localhost:8000/
+          # лаба 8: семантичний режим вмикається, лише якщо emb/ зібрано для того самого
+          # корпусу, що скачав образ (відбиток у emb/meta.json)
+          if curl -fsS "localhost:8000/search?q=scientist+reanimates+a+cadaver&mode=semantic&k=3"; then
+            echo "semantic: ok"
+          else
+            echo "::warning::semantic search is disabled in the image (see container logs)"
+          fi
 
       - name: Container logs
         if: always()

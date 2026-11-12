@@ -5,6 +5,7 @@ from typing import Annotated, cast
 from fastapi import Depends, HTTPException, Request
 
 from findex.index import Index
+from findex.semantic import SemanticSearch, SemanticUnavailableError
 from findex.web.service import SearchService
 from findex.web.settings import Settings
 
@@ -28,12 +29,25 @@ class IndexHolder:
             self.error = f"cannot load index {path}: {e}"
             log.exception("cannot load index %s", path)
             return
+        semantic = await asyncio.to_thread(self._open_semantic, index)
         self.service = SearchService(
             index,
             snippet_width=self.settings.snippet_width,
             text_cache=self.settings.text_cache,
+            semantic=semantic,
         )
         log.info("index ready: %s, %d documents", path, index.num_docs)
+
+    def _open_semantic(self, index: Index) -> SemanticSearch | None:
+        # Без ембедингів сервіс усе одно працює — лише без mode=semantic|hybrid.
+        emb = self.settings.emb_path
+        try:
+            semantic = SemanticSearch.open(emb, index, threads=self.settings.semantic_threads)
+        except (SemanticUnavailableError, OSError, ValueError) as e:
+            log.warning("semantic search disabled: %s", e)
+            return None
+        log.info("semantic ready: %s, %d fragments", emb, len(semantic.index.vectors))
+        return semantic
 
     def close(self) -> None:
         if self.service is not None:

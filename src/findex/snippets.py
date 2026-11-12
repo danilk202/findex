@@ -1,10 +1,12 @@
+import heapq
 import re
 from collections.abc import Iterable, Iterator
+from functools import lru_cache
 from pathlib import Path
 from typing import Final
 
 from findex.corpus import read_text
-from findex.tokenize import WORD, normalize
+from findex.tokenize import normalize
 
 type Marks = tuple[str, str]
 
@@ -29,27 +31,62 @@ def _word_start(text: str, i: int) -> int:
     return i
 
 
+# Межі токена з tokenize.WORD: \w+(?:['’ʼ-]\w+)*. Збіг — цілий токен, якщо перед ним
+# немає \w і немає «\w + апостроф/дефіс» (інакше це середина well-known), а після нього
+# немає \w і немає «апостроф/дефіс + \w» (інакше це початок whale's).
+_JOIN: Final = "'’ʼ-"
+_TOKEN_END: Final = rf"(?![\w])(?![{_JOIN}]\w)"
+
+
+@lru_cache(maxsize=64)
+def _lowered(text: str) -> str | None:
+    # lower() один раз на документ. None — якщо зсунулись би позиції (є символи,
+    # що в нижньому регістрі довші: «İ» -> «i̇»); тоді повільний шлях з IGNORECASE.
+    low = text.lower()
+    return low if len(low) == len(text) else None
+
+
+def _is_word(ch: str) -> bool:
+    return ch.isalnum() or ch == "_"  # саме так \w визначає модуль re для str
+
+
+def _starts_token(text: str, i: int) -> bool:
+    if i > 0 and _is_word(text[i - 1]):
+        return False
+    return not (i > 1 and text[i - 1] in _JOIN and _is_word(text[i - 2]))
+
+
+def _term_hits(text: str, low: str, term: str) -> Iterator[tuple[int, int, str]]:
+    # Літерал на початку шаблону — re шукає його швидким пошуком підрядка, а не пробує
+    # кожну позицію. Тому межу ПЕРЕД словом перевіряємо в Python, лише на збігах.
+    for m in re.finditer(re.escape(term) + _TOKEN_END, low):
+        s, e = m.span()
+        if _starts_token(text, s) and normalize(text[s:e]) == term:
+            yield s, e, term
+
+
 def iter_hits(text: str, wanted: set[str]) -> Iterator[tuple[int, int, str]]:
     # Входження термів: (початок, кінець, нормалізований терм), за зростанням, ліниво.
-    # Лаба 7: токенізувати весь текст на кожен запит задорого (War and Peace — 0,25 с),
-    # тож спершу швидкий пошук у C (re + IGNORECASE), а токенізуємо лише рядки з кандидатами.
-    # Токен не перетинає \n, тому результат той самий, що й при повному проході.
+    # Лаба 7 шукала кандидатів однією регуляркою з IGNORECASE і токенізувала рядок навколо
+    # кожного. Профіль лаби 8: 95 % часу пошуку на сервері — це сама регулярка (у C):
+    # IGNORECASE не дає re шукати літерал швидко. Тепер — текст у нижньому регістрі
+    # (кешується), окремий швидкий пошук на кожен терм і злиття за позицією.
     if not wanted:
         return
-    probe = re.compile(
-        "|".join(re.escape(w) for w in sorted(wanted, key=len, reverse=True)), re.IGNORECASE
-    )
-    line_end = -1
-    for cand in probe.finditer(text):
-        if cand.start() < line_end:
-            continue  # цей рядок уже розібрано
-        line_start = text.rfind("\n", 0, cand.start()) + 1
-        line_end = text.find("\n", cand.end())
-        if line_end == -1:
-            line_end = len(text)
-        for m in WORD.finditer(text, line_start, line_end):
-            if (w := normalize(m.group())) in wanted:
-                yield m.start(), m.end(), w
+    low = _lowered(text)
+    if low is None:
+        yield from _iter_hits_slow(text, wanted)
+        return
+    yield from heapq.merge(*(_term_hits(text, low, t) for t in sorted(wanted)))
+
+
+def _iter_hits_slow(text: str, wanted: set[str]) -> Iterator[tuple[int, int, str]]:
+    alternatives = "|".join(re.escape(w) for w in sorted(wanted, key=len, reverse=True))
+    start = rf"(?<!\w)(?<!\w[{_JOIN}])"
+    probe = re.compile(f"{start}(?:{alternatives}){_TOKEN_END}", re.IGNORECASE)
+    for m in probe.finditer(text):
+        if (w := normalize(m.group())) in wanted:
+            yield m.start(), m.end(), w
 
 
 def find_hits(text: str, wanted: set[str]) -> list[tuple[int, int, str]]:

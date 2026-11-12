@@ -1,7 +1,7 @@
 [project]
 name = "findex"
-version = "0.7.0"
-description = "Навчальний пошуковик: краулер, інвертований індекс, BM25, мова запитів, CLI і веб-пошук на FastAPI"
+version = "1.0.0"
+description = "Навчальний пошуковик: краулер, інвертований індекс на NumPy, BM25, семантичний і гібридний пошук, CLI і веб на FastAPI"
 readme = "README.md"
 authors = [
     { name = "Danil Kovtun", email = "danilcreativniy@gmail.com" }
@@ -19,8 +19,11 @@ dependencies = [
     "fastapi>=0.162.4",
     "httpx>=0.28.1",
     "jinja2>=3.1.6",
+    "numpy>=2.5.4",
+    "onnxruntime>=1.31.1",
     "pydantic-settings>=2.16.2",
     "rich>=15.0.0",
+    "tokenizers>=0.23.3",
     "typer>=0.27.3",
     "uvicorn>=0.54.0",
 ]
@@ -45,6 +48,7 @@ dev = [
     "hypothesis>=6.170.14",
     "pyright>=1.1.414",
     "pytest>=9.1.1",
+    "pytest-benchmark>=5.3.1",
     "pytest-cov>=7.1.0",
     "ruff>=0.16.10",
 ]
@@ -56,7 +60,7 @@ pythonVersion = "3.13"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--strict-markers"
+addopts = "--strict-markers --benchmark-disable"
 markers = ["slow: тест довший за секунду (пропустити: -m 'not slow')"]
 
 [tool.coverage.run]
@@ -79,6 +83,8 @@ omit = [
     "*/findex/looplag.py",
     # лаба 7: драйвер замірів def/async і oha — запускається вручну, результати в README
     "*/findex/webbench.py",
+    # лаба 8: драйвер замірів (до/після, скорер, сніпети) — запускається вручну
+    "*/findex/profbench.py",
 ]
 
 [tool.coverage.report]
